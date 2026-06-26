@@ -4,20 +4,9 @@ A tiny weather app that answers one question: **should I hang my laundry out to 
 
 It reads Singapore's live weather (from NEA / MSS) for your location, factors in what's in your load, and tells you whether there's a clean drying window before rain rolls in — with a suggested schedule and an hour-by-hour outlook.
 
-## Running it
+## [→ Open the app](https://theclumsygeek.github.io/laundry-brief/)
 
-It's a single HTML file with no dependencies. Either:
-
-- **Open `laundry-brief.html` directly** in your browser, or
-- **Serve it** (needed for location to work reliably — most browsers only grant GPS over `http://localhost` or `https`):
-  ```
-  npx serve .
-  # or
-  python -m http.server 8080
-  ```
-  Then open the address it prints (e.g. http://localhost:8080/laundry-brief.html).
-
-No build step, no account, no API key.
+No account needed, no API key required.
 
 ## Reading the verdict
 

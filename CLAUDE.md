@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A single-file HTML app (`laundry-brief.html`) that gives a laundry-drying recommendation for the user's location in Singapore. It resolves location from the browser's GPS (falling back to Bedok when denied), and supports saving a "home" location to check conditions there while away. No build step, no dependencies, no bundler — open the file directly in a browser or serve it with any static server.
+A single-file HTML app (`index.html`) that gives a laundry-drying recommendation for the user's location in Singapore. It resolves location from the browser's GPS (falling back to Bedok when denied), and supports saving a "home" location to check conditions there while away. No build step, no dependencies, no bundler — open the file directly in a browser or serve it with any static server.
 
 User-facing usage is documented in `README.md`.
 
@@ -17,7 +17,7 @@ python -m http.server 8080
 
 ## Architecture
 
-Everything lives in `laundry-brief.html`: styles, logic, and markup are all inline. The file is structured in three layers:
+Everything lives in `index.html`: styles, logic, and markup are all inline. The file is structured in three layers:
 
 **CSS** (inline `<style>`) — uses CSS custom properties (`--paper`, `--ink`, `--rope`, etc.) for theming. Dark mode is handled by `[data-theme="dark"]` on `#laundry-root`, with a `@media (prefers-color-scheme: dark)` fallback.
 
