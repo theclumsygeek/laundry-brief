@@ -495,6 +495,14 @@
     const d = new Date(iso);
     return d.getHours() + d.getMinutes() / 60;
   }
+  function sgtDateStr(d) {
+    const sgt = new Date(d.getTime() + 8 * 3600000);
+    return sgt.toISOString().slice(0, 10);
+  }
+  function toSGTHour(d) {
+    const sgt = new Date(d.getTime() + 8 * 3600000);
+    return sgt.getUTCHours() + sgt.getUTCMinutes() / 60;
+  }
 
   function conditionToRisk(forecastText) {
     const t = (forecastText || '').toLowerCase();
@@ -626,21 +634,27 @@
       return;
     }
 
-    const { areaCondition, riskNow, hourly, hourlyRiskFull, dailyHigh, dailyLow, humidityRange, regionOutlook, nowHour, plan, fetchedAt, fabricPlans, slowestFabricId, humidity, windKmh, wMult } = state.data;
+    const { areaCondition, riskNow, hourly, hourlyRiskFull, dailyHigh, dailyLow, humidityRange, regionOutlook, nowHour, plan, fetchedAt, fabricPlans, slowestFabricId, humidity, windKmh, wMult, isTomorrow } = state.data;
 
     const verdictClass = plan.verdict === 'good' ? 'good' : plan.verdict === 'warn' ? 'warn' : 'bad';
 
     const slowestFabric = FABRICS.find(f => f.id === slowestFabricId) || FABRICS.find(f => f.id === 'cotton');
     let headline, sub;
     if (plan.verdict === 'good') {
-      headline = `Start by ${fmtHour(plan.startBy)}`;
-      sub = `Wash now and you'll have it on the line by ${fmtHour(plan.hangBy)}, with roughly ${plan.dryWindowHours.toFixed(1)}h of dry time before conditions turn. Good margin — based on your slowest-drying pick, ${slowestFabric.label.toLowerCase()}.`;
+      headline = isTomorrow ? `Tomorrow — Start by ${fmtHour(plan.startBy)}` : `Start by ${fmtHour(plan.startBy)}`;
+      sub = isTomorrow
+        ? `Based on tomorrow's forecast, wash before ${fmtHour(plan.startBy)} and you'll have it on the line by ${fmtHour(plan.hangBy)}, with roughly ${plan.dryWindowHours.toFixed(1)}h of dry time before conditions turn. Good margin for ${slowestFabric.label.toLowerCase()}.`
+        : `Wash now and you'll have it on the line by ${fmtHour(plan.hangBy)}, with roughly ${plan.dryWindowHours.toFixed(1)}h of dry time before conditions turn. Good margin — based on your slowest-drying pick, ${slowestFabric.label.toLowerCase()}.`;
     } else if (plan.verdict === 'warn') {
-      headline = `Start by ${fmtHour(plan.startBy)} — tight`;
-      sub = `You'd hang by ${fmtHour(plan.hangBy)}, leaving about ${plan.dryWindowHours.toFixed(1)}h before the window narrows for ${slowestFabric.label.toLowerCase()}. Workable, but watch the sky and have a backup plan.`;
+      headline = isTomorrow ? `Tomorrow — Start by ${fmtHour(plan.startBy)}, tight` : `Start by ${fmtHour(plan.startBy)} — tight`;
+      sub = isTomorrow
+        ? `Based on tomorrow's forecast, you'd hang by ${fmtHour(plan.hangBy)}, leaving about ${plan.dryWindowHours.toFixed(1)}h before the window narrows for ${slowestFabric.label.toLowerCase()}. Workable, but watch the sky.`
+        : `You'd hang by ${fmtHour(plan.hangBy)}, leaving about ${plan.dryWindowHours.toFixed(1)}h before the window narrows for ${slowestFabric.label.toLowerCase()}. Workable, but watch the sky and have a backup plan.`;
     } else {
-      headline = `Not today, Bedok`;
-      sub = `Even starting right now there isn't a clean ${plan.dryHours.toFixed(1)}h drying window for ${slowestFabric.label.toLowerCase()} before showers are expected. Better to wait for a clearer day or use a dryer / indoor rack today.`;
+      headline = isTomorrow ? `Not tomorrow either, Bedok` : `Not today, Bedok`;
+      sub = isTomorrow
+        ? `Tomorrow's forecast doesn't show a clean ${plan.dryHours.toFixed(1)}h drying window for ${slowestFabric.label.toLowerCase()} before showers are expected. Plan for indoor drying or check again in the morning.`
+        : `Even starting right now there isn't a clean ${plan.dryHours.toFixed(1)}h drying window for ${slowestFabric.label.toLowerCase()} before showers are expected. Better to wait for a clearer day or use a dryer / indoor rack today.`;
     }
 
     const stepsHTML = plan.verdict !== 'bad' ? `
@@ -748,7 +762,7 @@
         <div class="lb-updated">Live · MSS/NEA · fetched ${fetchedAt}<button id="lb-retry">Refresh</button></div>
 
         <div class="lb-verdict ${verdictClass}">
-          <div class="lb-eyebrow">Right now: ${riskNow.icon} ${areaCondition}${regionOutlook ? ' · ' + regionOutlook : ''}</div>
+          <div class="lb-eyebrow">${isTomorrow ? `Tomorrow's forecast${regionOutlook ? ' · ' + regionOutlook : ''}` : `Right now: ${riskNow.icon} ${areaCondition}${regionOutlook ? ' · ' + regionOutlook : ''}`}</div>
           <h2 class="lb-headline">${headline}</h2>
           <p class="lb-sub">${sub}</p>
         </div>
@@ -762,7 +776,7 @@
         <div class="lb-fabric-breakdown">${fabricBreakdownHTML}</div>
 
         <div class="lb-timeline">
-          <div class="lb-timeline-label">Today's window — 6 AM to 8 PM</div>
+          <div class="lb-timeline-label">${isTomorrow ? "Tomorrow's window" : "Today's window"} — 6 AM to 8 PM</div>
           <div class="lb-track">${svg}</div>
           <div class="lb-track-labels"><span>6 AM</span><span>10 AM</span><span>2 PM</span><span>6 PM</span><span>8 PM</span></div>
           ${legendHTML}
@@ -844,6 +858,10 @@
 
       const now = new Date();
       const nowHour = now.getHours() + now.getMinutes() / 60;
+      const isTomorrow = nowHour >= LATEST_FINISH_HOUR;
+      const targetDateStr = isTomorrow
+        ? sgtDateStr(new Date(now.getTime() + 24 * 3600000))
+        : sgtDateStr(now);
 
       // Build hourly risk profile 6am-8pm using 24hr regional (east) forecast text as a coarse signal,
       // refined by the 2-hour nowcast for the immediate hours.
@@ -862,14 +880,22 @@
       }
       const periods = outlook24?.data?.records?.[0]?.periods || outlook24?.items?.[0]?.periods;
 
-      // Build hourly risk 6–20 from 24hr period data (east region) if available, else heuristic fallback
+      // Build hourly risk 6–20 from 24hr period data (east region) if available, else heuristic fallback.
+      // Uses date-aware overlap so tomorrow mode only picks up periods that fall on the target day.
       const periodRiskByHour = {};
       if (periods && periods.length) {
+        const targetDayStart = new Date(targetDateStr + 'T06:00:00+08:00');
+        const targetDayEnd   = new Date(targetDateStr + 'T21:00:00+08:00'); // 9pm cap covers the h=20 display slot
         for (const p of periods) {
-          const s = parseHourFromISO(p.timePeriod?.start || p.time?.start);
-          const e = parseHourFromISO(p.timePeriod?.end || p.time?.end);
+          const pStart = new Date(p.timePeriod?.start || p.time?.start);
+          const pEnd   = new Date(p.timePeriod?.end   || p.time?.end);
+          const overlapStart = new Date(Math.max(pStart, targetDayStart));
+          const overlapEnd   = new Date(Math.min(pEnd, targetDayEnd));
+          if (overlapStart >= overlapEnd) continue;
           const r = conditionToRisk(p.regions?.east || '');
-          for (let h = Math.floor(s); h < Math.ceil(e) && h <= 20; h++) periodRiskByHour[h] = r;
+          const startH = toSGTHour(overlapStart);
+          const endH   = toSGTHour(overlapEnd);
+          for (let h = Math.floor(startH); h < Math.ceil(endH) && h <= 20; h++) periodRiskByHour[h] = r;
         }
       }
       const hasPeriodData = Object.keys(periodRiskByHour).length > 0;
@@ -893,20 +919,24 @@
         hourlyRisk.push({ hour: h, level: r.level });
         if (h % 2 === 0) hourlyDisplay.push({ hour: h, icon: r.icon, label: r.label });
       }
-      // Overlay current nowcast on the nearest display slot
-      const nearest = hourlyDisplay.reduce((a, b) => Math.abs(b.hour - nowHour) < Math.abs(a.hour - nowHour) ? b : a, hourlyDisplay[0]);
-      if (nearest) { nearest.icon = riskNow.icon; nearest.label = riskNow.label; }
+      // Overlay current nowcast on the nearest display slot (today only; irrelevant for tomorrow)
+      if (!isTomorrow) {
+        const nearest = hourlyDisplay.reduce((a, b) => Math.abs(b.hour - nowHour) < Math.abs(a.hour - nowHour) ? b : a, hourlyDisplay[0]);
+        if (nearest) { nearest.icon = riskNow.icon; nearest.label = riskNow.label; }
+      }
 
-      const wMult = weatherMultiplier({ rh: humidity, windKmh, conditionText: areaCondition || regionOutlook });
+      // For tomorrow mode, prefer tomorrow's general forecast over tonight's nowcast as sky condition
+      const wMult = weatherMultiplier({ rh: humidity, windKmh, conditionText: isTomorrow ? (regionOutlook || areaCondition) : (areaCondition || regionOutlook) });
+      const planNowHour = isTomorrow ? EARLIEST_START_HOUR : nowHour;
 
       // Build a plan per selected fabric, then pick the slowest-drying selected fabric to
       // drive the headline verdict — that's the realistic constraint for a mixed load.
       const fabricPlans = selectedFabricIds.map(id => {
         const dh = dryHoursFor(id, wMult);
-        return { id, fabric: FABRICS.find(f => f.id === id), dryHours: dh, plan: buildPlan(nowHour, hourlyRisk, dh) };
+        return { id, fabric: FABRICS.find(f => f.id === id), dryHours: dh, plan: buildPlan(planNowHour, hourlyRisk, dh) };
       });
       fabricPlans.sort((a, b) => b.dryHours - a.dryHours);
-      const slowest = fabricPlans[0] || { id: 'cotton', fabric: FABRICS.find(f => f.id === 'cotton'), dryHours: DRY_HOURS_BASELINE * wMult, plan: buildPlan(nowHour, hourlyRisk, DRY_HOURS_BASELINE * wMult) };
+      const slowest = fabricPlans[0] || { id: 'cotton', fabric: FABRICS.find(f => f.id === 'cotton'), dryHours: DRY_HOURS_BASELINE * wMult, plan: buildPlan(planNowHour, hourlyRisk, DRY_HOURS_BASELINE * wMult) };
       const plan = slowest.plan;
 
       render({
@@ -914,7 +944,7 @@
         data: {
           areaCondition, riskNow, hourly: hourlyDisplay, hourlyRiskFull: hourlyRisk, dailyHigh, dailyLow, humidityRange,
           regionOutlook, nowHour, plan, fabricPlans, slowestFabricId: slowest.id,
-          humidity, windKmh, wMult,
+          humidity, windKmh, wMult, isTomorrow,
           fetchedAt: now.toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit' })
         }
       });
