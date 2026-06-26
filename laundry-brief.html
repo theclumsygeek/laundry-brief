@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Laundry Brief — Bedok</title>
+<title>Laundry Brief</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=IBM+Plex+Mono:wght@400;700&display=swap" rel="stylesheet">
@@ -137,6 +137,21 @@
     background: var(--ink);
     color: var(--paper);
   }
+  .lb-loc-toggle { display: flex; border: 1px solid var(--line); border-radius: 14px; padding: 2px; gap: 1px; }
+  .lb-loc-toggle button {
+    font-family: inherit;
+    font-size: 11px;
+    line-height: 1;
+    background: none;
+    border: none;
+    border-radius: 12px;
+    padding: 4px 8px;
+    cursor: pointer;
+    color: var(--ink-faint);
+    white-space: nowrap;
+  }
+  .lb-loc-toggle button.active { background: var(--ink); color: var(--paper); }
+  .lb-loc[data-saveable="true"] { cursor: pointer; text-decoration: underline dotted; }
 
   .lb-updated {
     font-size: 10.5px;
@@ -527,26 +542,42 @@
     } catch (e) { return null; }
   }
 
+  // Resolve the named forecast area closest to a coordinate, using the API's own
+  // area_metadata list (embedded in the 2-hour nowcast). No external geocoding needed.
+  function findNearestArea(lat, lng, areaMetadata) {
+    if (!areaMetadata?.length) return null;
+    let best = null, bestDist = Infinity;
+    for (const area of areaMetadata) {
+      const aLat = area.label_location?.latitude ?? area.label_location?.lat;
+      const aLng = area.label_location?.longitude ?? area.label_location?.lng;
+      if (aLat == null || aLng == null) continue;
+      const d = Math.hypot(lat - aLat, lng - aLng);
+      if (d < bestDist) { bestDist = d; best = area.name; }
+    }
+    return best;
+  }
+
   async function fetchJSON(url) {
     const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     return res.json();
   }
 
-  // Bedok is in eastern Singapore; pick the station reading closest to it from a v1-style
+  // Pick the station reading closest to the active location from a v1-style
   // { metadata: { stations: [{id, location:{lat,lng}}] }, items: [{ readings: [{station_id, value}] }] } payload.
-  const BEDOK_LAT = 1.3236, BEDOK_LNG = 103.9273;
-  function nearestStationReading(data) {
+  // FALLBACK is Bedok (eastern Singapore) — used when GPS is denied and no home is saved.
+  const FALLBACK_LAT = 1.3236, FALLBACK_LNG = 103.9273;
+  function nearestStationReading(data, lat, lng) {
     try {
       const stations = data?.metadata?.stations || data?.data?.stations || [];
       const items = data?.items || data?.data?.readings || [];
       if (!stations.length || !items.length) return null;
       let best = null, bestDist = Infinity;
       for (const s of stations) {
-        const lat = s.location?.latitude ?? s.location?.lat;
-        const lng = s.location?.longitude ?? s.location?.lng;
-        if (lat == null || lng == null) continue;
-        const d = Math.hypot(lat - BEDOK_LAT, lng - BEDOK_LNG);
+        const sLat = s.location?.latitude ?? s.location?.lat;
+        const sLng = s.location?.longitude ?? s.location?.lng;
+        if (sLat == null || sLng == null) continue;
+        const d = Math.hypot(sLat - lat, sLng - lng);
         if (d < bestDist) { bestDist = d; best = s; }
       }
       if (!best) return null;
@@ -557,7 +588,7 @@
     } catch (e) { return null; }
   }
 
-  async function loadWeather() {
+  async function loadWeather(lat, lng) {
     const endpoints2hr = [
       'https://api-open.data.gov.sg/v2/real-time/api/two-hour-weather-forecast',
       'https://api.data.gov.sg/v1/environment/2-hour-weather-forecast'
@@ -584,11 +615,11 @@
     let humidity = null, windKmh = null;
     try {
       const h = await fetchJSON(endpointsHumidity[0]);
-      humidity = nearestStationReading(h);
+      humidity = nearestStationReading(h, lat, lng);
     } catch (e) { /* fall back silently */ }
     try {
       const w = await fetchJSON(endpointsWind[0]);
-      const knots = nearestStationReading(w);
+      const knots = nearestStationReading(w, lat, lng);
       // NEA's real-time station feed reports wind speed in knots; convert to km/h for our thresholds.
       windKmh = knots != null ? knots * 1.852 : null;
     } catch (e) { /* fall back silently */ }
@@ -601,14 +632,14 @@
       root.innerHTML = `
         <div class="lb-wrap">
           <div class="lb-masthead">
-            <div class="lb-masthead-left"><h1>Laundry Brief</h1><span class="lb-loc">Bedok, SG</span></div>
+            <div class="lb-masthead-left"><h1>Laundry Brief</h1><span class="lb-loc">${lastAreaName}, SG</span></div>
             ${themeToggleHTML()}
           </div>
           <div class="lb-updated">Checking the sky…</div>
           <div class="lb-verdict loading">
             <div class="lb-eyebrow">Reading live forecast</div>
             <div class="lb-headline"><span class="lb-spin"></span>One moment</div>
-            <p class="lb-sub">Pulling the latest 2-hour nowcast and 24-hour outlook from MSS / NEA for Bedok.</p>
+            <p class="lb-sub">Pulling the latest 2-hour nowcast and 24-hour outlook from MSS / NEA for your area.</p>
           </div>
         </div>`;
       wireThemeToggle(() => render(state));
@@ -619,14 +650,14 @@
       root.innerHTML = `
         <div class="lb-wrap">
           <div class="lb-masthead">
-            <div class="lb-masthead-left"><h1>Laundry Brief</h1><span class="lb-loc">Bedok, SG</span></div>
+            <div class="lb-masthead-left"><h1>Laundry Brief</h1><span class="lb-loc">${lastAreaName}, SG</span></div>
             ${themeToggleHTML()}
           </div>
           <div class="lb-updated">Live fetch failed<button id="lb-retry">Retry</button></div>
           <div class="lb-error">
             Couldn't reach the live NEA forecast (${state.message || 'network error'}).
             This can happen if the endpoint path has changed or the request was blocked.
-            Tap retry, or check weather.gov.sg directly for Bedok's 2-hour nowcast and 24-hour outlook.
+            Tap retry, or check weather.gov.sg directly for the 2-hour nowcast and 24-hour outlook.
           </div>
         </div>`;
       document.getElementById('lb-retry')?.addEventListener('click', boot);
@@ -634,7 +665,9 @@
       return;
     }
 
-    const { areaCondition, riskNow, hourly, hourlyRiskFull, dailyHigh, dailyLow, humidityRange, regionOutlook, nowHour, plan, fetchedAt, fabricPlans, slowestFabricId, humidity, windKmh, wMult, isTomorrow } = state.data;
+    const { areaCondition, riskNow, hourly, hourlyRiskFull, dailyHigh, dailyLow, humidityRange, regionOutlook, nowHour, plan, fetchedAt, fabricPlans, slowestFabricId, humidity, windKmh, wMult, isTomorrow, areaName, locationMode, gpsAreaName, storedHome, showLocationToggle, canSaveHome } = state.data;
+
+    document.title = `Laundry Brief — ${areaName}`;
 
     const verdictClass = plan.verdict === 'good' ? 'good' : plan.verdict === 'warn' ? 'warn' : 'bad';
 
@@ -651,7 +684,7 @@
         ? `Based on tomorrow's forecast, you'd hang by ${fmtHour(plan.hangBy)}, leaving about ${plan.dryWindowHours.toFixed(1)}h before the window narrows for ${slowestFabric.label.toLowerCase()}. Workable, but watch the sky.`
         : `You'd hang by ${fmtHour(plan.hangBy)}, leaving about ${plan.dryWindowHours.toFixed(1)}h before the window narrows for ${slowestFabric.label.toLowerCase()}. Workable, but watch the sky and have a backup plan.`;
     } else {
-      headline = isTomorrow ? `Not tomorrow either, Bedok` : `Not today, Bedok`;
+      headline = isTomorrow ? `Not tomorrow either, ${areaName}` : `Not today, ${areaName}`;
       sub = isTomorrow
         ? `Tomorrow's forecast doesn't show a clean ${plan.dryHours.toFixed(1)}h drying window for ${slowestFabric.label.toLowerCase()} before showers are expected. Plan for indoor drying or check again in the morning.`
         : `Even starting right now there isn't a clean ${plan.dryHours.toFixed(1)}h drying window for ${slowestFabric.label.toLowerCase()} before showers are expected. Better to wait for a clearer day or use a dryer / indoor rack today.`;
@@ -753,10 +786,17 @@
         <span>Drying speed ${wMult < 0.95 ? 'faster' : wMult > 1.1 ? 'slower' : 'typical'} than usual (×${wMult.toFixed(2)})</span>
       </div>`;
 
+    const locationHTML = showLocationToggle
+      ? `<div class="lb-loc-toggle" role="group" aria-label="Location">
+          <button id="lb-loc-gps" class="${locationMode === 'gps' ? 'active' : ''}" title="Use current location">📍 ${gpsAreaName}</button>
+          <button id="lb-loc-home" class="${locationMode === 'home' ? 'active' : ''}" title="Use saved home">🏠 ${storedHome.label}</button>
+        </div>`
+      : `<span class="lb-loc" id="lb-loc-label"${canSaveHome ? ' data-saveable="true" title="Tap to save as home"' : ''}>${locationMode === 'home' ? '🏠' : '📍'} ${areaName}, SG</span>`;
+
     root.innerHTML = `
       <div class="lb-wrap">
         <div class="lb-masthead">
-          <div class="lb-masthead-left"><h1>Laundry Brief</h1><span class="lb-loc">Bedok, SG</span></div>
+          <div class="lb-masthead-left"><h1>Laundry Brief</h1>${locationHTML}</div>
           ${themeToggleHTML()}
         </div>
         <div class="lb-updated">Live · MSS/NEA · fetched ${fetchedAt}<button id="lb-retry">Refresh</button></div>
@@ -793,8 +833,21 @@
         </div>
       </div>`;
 
-    document.getElementById('lb-retry')?.addEventListener('click', boot);
+    document.getElementById('lb-retry')?.addEventListener('click', () => boot(true));
     wireThemeToggle(() => render(state));
+    document.getElementById('lb-loc-gps')?.addEventListener('click', () => {
+      locationMode = 'gps'; setStoredMode('gps'); boot();
+    });
+    document.getElementById('lb-loc-home')?.addEventListener('click', () => {
+      locationMode = 'home'; setStoredMode('home'); boot();
+    });
+    document.getElementById('lb-loc-label')?.addEventListener('click', () => {
+      if (!canSaveHome || !gpsCoords) return;
+      setStoredHome({ lat: gpsCoords.lat, lng: gpsCoords.lng, label: areaName });
+      const el = document.getElementById('lb-loc-label');
+      if (el) el.textContent = '🏠 Home saved!';
+      setTimeout(boot, 700);
+    });
     document.querySelectorAll('.lb-fabric-chip').forEach(btn => {
       btn.addEventListener('click', () => {
         const id = btn.getAttribute('data-fabric');
@@ -848,12 +901,81 @@
   }
   let selectedFabricIds = getStoredFabrics() || DEFAULT_FABRIC_IDS.slice();
 
-  async function boot() {
+  // Home: { lat, lng, label } — label is the resolved area name string, e.g. "Tampines".
+  function getStoredHome() {
+    try {
+      const raw = localStorage.getItem('laundry-brief-home');
+      if (!raw) return null;
+      const h = JSON.parse(raw);
+      return (h && typeof h.lat === 'number' && typeof h.lng === 'number' && h.label) ? h : null;
+    } catch (e) { return null; }
+  }
+  function setStoredHome(home) {
+    try {
+      if (home) localStorage.setItem('laundry-brief-home', JSON.stringify(home));
+      else localStorage.removeItem('laundry-brief-home');
+    } catch (e) {}
+  }
+  // Mode: 'gps' | 'home'
+  function getStoredMode() {
+    try { const m = localStorage.getItem('laundry-brief-mode'); return (m === 'gps' || m === 'home') ? m : null; } catch (e) { return null; }
+  }
+  function setStoredMode(mode) {
+    try { localStorage.setItem('laundry-brief-mode', mode); } catch (e) {}
+  }
+
+  let gpsCoords = null;                          // { lat, lng } — resolved once per session, cached so chip taps don't re-prompt
+  let locationMode = getStoredMode() || 'gps';   // 'gps' | 'home'
+  let lastAreaName = 'your area';                // last successfully resolved area, shown during loading re-renders
+
+  function getGPSPosition(maxAge) {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) return reject(new Error('no geolocation'));
+      navigator.geolocation.getCurrentPosition(resolve, reject,
+        { timeout: 5000, maximumAge: maxAge ?? 300000, enableHighAccuracy: false });
+    });
+  }
+
+  async function boot(forceGPS) {
     render({ status: 'loading' });
     try {
-      const { nowcast, outlook24, humidity, windKmh } = await loadWeather();
-      const areaInfo = findAreaForecast(nowcast, 'Bedok');
-      const areaCondition = areaInfo?.forecast?.forecast || areaInfo?.forecast?.condition || 'No data for Bedok';
+      // Phase A — resolve coords. Attempt a GPS fix once per session regardless of mode so the
+      // "📍 Here" toggle option always has a label; a granted permission won't re-prompt, a denied
+      // one rejects instantly. Which coords actually drive the weather is chosen by mode below.
+      // forceGPS (manual Refresh) drops the session cache and asks for a fresh fix (maximumAge 0).
+      if (forceGPS === true) gpsCoords = null;
+      if (!gpsCoords) {
+        try {
+          const pos = await getGPSPosition(forceGPS === true ? 0 : undefined);
+          gpsCoords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        } catch (e) { /* denied / unavailable — non-fatal */ }
+      }
+      const storedHome = getStoredHome();
+      let activeLat, activeLng;
+      if (locationMode === 'home' && storedHome) {
+        activeLat = storedHome.lat; activeLng = storedHome.lng;
+      } else if (gpsCoords) {
+        activeLat = gpsCoords.lat; activeLng = gpsCoords.lng;
+      } else if (storedHome) {
+        activeLat = storedHome.lat; activeLng = storedHome.lng;
+      } else {
+        activeLat = FALLBACK_LAT; activeLng = FALLBACK_LNG;
+      }
+
+      const { nowcast, outlook24, humidity, windKmh } = await loadWeather(activeLat, activeLng);
+
+      // Phase B — resolve area name from the nowcast's embedded area_metadata.
+      const areaMeta = nowcast?.data?.area_metadata || nowcast?.data?.areaMetadata || nowcast?.area_metadata;
+      const areaName = (areaMeta && findNearestArea(activeLat, activeLng, areaMeta)) || storedHome?.label || 'Bedok';
+      lastAreaName = areaName;
+
+      // Phase C — UI toggle / save-home state.
+      const gpsAreaName = (gpsCoords && areaMeta) ? findNearestArea(gpsCoords.lat, gpsCoords.lng, areaMeta) : null;
+      const showLocationToggle = !!(gpsCoords && storedHome && gpsAreaName && gpsAreaName !== storedHome.label);
+      const canSaveHome = locationMode === 'gps' && !!gpsCoords && !!areaMeta && (!storedHome || gpsAreaName !== storedHome.label);
+
+      const areaInfo = findAreaForecast(nowcast, areaName);
+      const areaCondition = areaInfo?.forecast?.forecast || areaInfo?.forecast?.condition || `No data for ${areaName}`;
       const riskNow = conditionToRisk(areaCondition);
 
       const now = new Date();
@@ -945,6 +1067,7 @@
           areaCondition, riskNow, hourly: hourlyDisplay, hourlyRiskFull: hourlyRisk, dailyHigh, dailyLow, humidityRange,
           regionOutlook, nowHour, plan, fabricPlans, slowestFabricId: slowest.id,
           humidity, windKmh, wMult, isTomorrow,
+          areaName, locationMode, gpsAreaName, storedHome, showLocationToggle, canSaveHome,
           fetchedAt: now.toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit' })
         }
       });
