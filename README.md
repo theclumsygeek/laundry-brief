@@ -20,7 +20,7 @@ If you open the app after 7pm, it automatically shows **tomorrow's** forecast in
 
 Below the verdict:
 
-- **Timeline (6 AM – 8 PM)** — the top bar shows your laundry stages (wash & hang → drying → safe buffer); the bar beneath it is the rain-risk heat strip for the day. The vertical "now" line marks the current time.
+- **Timeline (6 AM – 8 PM)** — the top bar shows your laundry stages (wash & hang → drying → safe buffer) in brown/blue; the bar beneath it is the rain-risk heat strip, coloured clear → low risk → showers → thundery. The two bars use separate colour schemes, and the legend below explains each. The vertical "now" line marks the current time.
 - **Schedule** — the concrete steps: when to start washing, when to hang, when it should be dry, and when rain risk rises.
 - **Hour-by-hour outlook** — a simple icon strip across the day.
 

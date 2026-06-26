@@ -25,6 +25,7 @@
     --card: #ffffff;
     --line: rgba(32,38,43,0.13);
     --rope: #a8703f;
+    --dry-line: #4f86c6;
     --good-bg: #e6efe0;
     --good-fg: #3f5c34;
     --good-line: #7fa066;
@@ -53,6 +54,7 @@
     --card: #1c2125;
     --line: rgba(236,232,222,0.12);
     --rope: #d99a5e;
+    --dry-line: #5b91c9;
     --good-bg: #1f2c1c;
     --good-fg: #a8d18f;
     --good-line: #4c6b3d;
@@ -73,6 +75,7 @@
       --card: #1c2125;
       --line: rgba(236,232,222,0.12);
       --rope: #d99a5e;
+      --dry-line: #5b91c9;
       --good-bg: #1f2c1c;
       --good-fg: #a8d18f;
       --good-line: #4c6b3d;
@@ -234,11 +237,24 @@
   }
   .lb-legend {
     display: flex;
-    flex-wrap: wrap;
-    gap: 12px 16px;
+    flex-direction: column;
+    gap: 9px;
     margin-top: 14px;
     padding-top: 12px;
     border-top: 1px solid var(--line);
+  }
+  .lb-legend-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 14px;
+  }
+  .lb-legend-title {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-faint);
+    flex: 0 0 64px;
   }
   .lb-legend-item {
     display: inline-flex;
@@ -334,6 +350,12 @@
   .lb-fabric-row-dot.good { background: var(--good-line); }
   .lb-fabric-row-dot.warn { background: var(--warn-line); }
   .lb-fabric-row-dot.bad  { background: var(--bad-line); }
+  @media (max-width: 420px) {
+    .lb-fabric-row { flex-wrap: wrap; row-gap: 3px; }
+    .lb-fabric-row-name { order: 1; }
+    .lb-fabric-row-dot { order: 2; }
+    .lb-fabric-row-time { order: 3; flex-basis: 100%; padding-left: 21px; }
+  }
 
   /* Schedule */
   .lb-schedule { border-top: 1px solid var(--line); padding-top: 4px; margin-bottom: 8px; }
@@ -729,8 +751,8 @@
 
     const stageRectsParts = [];
     if (washX1 > washX0) stageRectsParts.push(`<rect x="${washX0}" y="${stageTop}" width="${washX1-washX0}" height="${stageH}" rx="3" fill="var(--rope)" opacity="0.85"/>`);
-    if (dryingX1 > dryingX0) stageRectsParts.push(`<rect x="${dryingX0}" y="${stageTop}" width="${dryingX1-dryingX0}" height="${stageH}" rx="3" fill="${plan.verdict==='good' ? 'var(--good-line)' : 'var(--warn-line)'}" opacity="0.85"/>`);
-    if (plan.verdict !== 'bad' && bufferX1 > bufferX0) stageRectsParts.push(`<rect x="${bufferX0}" y="${stageTop}" width="${bufferX1-bufferX0}" height="${stageH}" rx="3" fill="var(--good-line)" opacity="0.25"/>`);
+    if (dryingX1 > dryingX0) stageRectsParts.push(`<rect x="${dryingX0}" y="${stageTop}" width="${dryingX1-dryingX0}" height="${stageH}" rx="3" fill="var(--dry-line)" opacity="0.85"/>`);
+    if (plan.verdict !== 'bad' && bufferX1 > bufferX0) stageRectsParts.push(`<rect x="${bufferX0}" y="${stageTop}" width="${bufferX1-bufferX0}" height="${stageH}" rx="3" fill="var(--dry-line)" opacity="0.28"/>`);
     const stageRects = stageRectsParts.join('');
 
     // Rain-risk heat strip across the full day using hourlyRiskFull (6..20, every hour)
@@ -755,12 +777,19 @@
 
     const legendHTML = `
       <div class="lb-legend">
-        <span class="lb-legend-item"><i style="background:var(--rope)"></i>Wash &amp; hang</span>
-        <span class="lb-legend-item"><i style="background:${plan.verdict==='good' ? 'var(--good-line)' : 'var(--warn-line)'}"></i>Drying</span>
-        <span class="lb-legend-item"><i style="background:var(--good-line);opacity:.4"></i>Safe buffer</span>
-        <span class="lb-legend-item"><i style="background:var(--ink-faint);opacity:.55"></i>Low risk</span>
-        <span class="lb-legend-item"><i style="background:var(--warn-line);opacity:.55"></i>Showers</span>
-        <span class="lb-legend-item"><i style="background:var(--bad-line);opacity:.55"></i>Thundery</span>
+        <div class="lb-legend-group">
+          <span class="lb-legend-title">Stages</span>
+          <span class="lb-legend-item"><i style="background:var(--rope)"></i>Wash &amp; hang</span>
+          <span class="lb-legend-item"><i style="background:var(--dry-line)"></i>Drying</span>
+          <span class="lb-legend-item"><i style="background:var(--dry-line);opacity:.4"></i>Safe buffer</span>
+        </div>
+        <div class="lb-legend-group">
+          <span class="lb-legend-title">Rain risk</span>
+          <span class="lb-legend-item"><i style="background:var(--good-line);opacity:.55"></i>Clear</span>
+          <span class="lb-legend-item"><i style="background:var(--ink-faint);opacity:.55"></i>Low risk</span>
+          <span class="lb-legend-item"><i style="background:var(--warn-line);opacity:.55"></i>Showers</span>
+          <span class="lb-legend-item"><i style="background:var(--bad-line);opacity:.55"></i>Thundery</span>
+        </div>
       </div>`;
 
     const fabricChipsHTML = FABRICS.map(f => `
