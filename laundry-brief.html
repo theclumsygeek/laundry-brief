@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Laundry Brief — Bedok</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=IBM+Plex+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; padding: 0; min-height: 100%; background: #f3efe6; }
+  @media (prefers-color-scheme: dark) { html, body { background: #14181b; } }
+</style>
+</head>
+<body>
+<div id="laundry-root"></div>
+<style>
+  html[data-theme="light"] body, html[data-theme="light"] { background: #f3efe6 !important; }
+  html[data-theme="dark"] body, html[data-theme="dark"] { background: #14181b !important; }
+  #laundry-root {
+    --paper: #f3efe6;
+    --ink: #20262b;
+    --ink-soft: #5a6168;
+    --ink-faint: #8b9097;
+    --card: #ffffff;
+    --line: rgba(32,38,43,0.13);
+    --rope: #a8703f;
+    --good-bg: #e6efe0;
+    --good-fg: #3f5c34;
+    --good-line: #7fa066;
+    --warn-bg: #f8edd6;
+    --warn-fg: #8a5a13;
+    --warn-line: #d9a13e;
+    --bad-bg: #f5e2de;
+    --bad-fg: #8a3324;
+    --bad-line: #c4604a;
+    --shadow: 0 1px 2px rgba(32,38,43,0.05);
+
+    color-scheme: light dark;
+    font-family: 'IBM Plex Mono', 'SF Mono', Menlo, monospace;
+    color: var(--ink);
+    background: var(--paper);
+    min-height: 100%;
+    box-sizing: border-box;
+    padding: 0;
+    transition: background 0.2s ease, color 0.2s ease;
+  }
+  #laundry-root[data-theme="dark"] {
+    --paper: #14181b;
+    --ink: #ece8de;
+    --ink-soft: #a8aeb3;
+    --ink-faint: #6f767c;
+    --card: #1c2125;
+    --line: rgba(236,232,222,0.12);
+    --rope: #d99a5e;
+    --good-bg: #1f2c1c;
+    --good-fg: #a8d18f;
+    --good-line: #4c6b3d;
+    --warn-bg: #332a16;
+    --warn-fg: #f0c374;
+    --warn-line: #8a6a2c;
+    --bad-bg: #321e1b;
+    --bad-fg: #f0a08c;
+    --bad-line: #8a4332;
+    --shadow: none;
+  }
+  @media (prefers-color-scheme: dark) {
+    #laundry-root:not([data-theme="light"]) {
+      --paper: #14181b;
+      --ink: #ece8de;
+      --ink-soft: #a8aeb3;
+      --ink-faint: #6f767c;
+      --card: #1c2125;
+      --line: rgba(236,232,222,0.12);
+      --rope: #d99a5e;
+      --good-bg: #1f2c1c;
+      --good-fg: #a8d18f;
+      --good-line: #4c6b3d;
+      --warn-bg: #332a16;
+      --warn-fg: #f0c374;
+      --warn-line: #8a6a2c;
+      --bad-bg: #321e1b;
+      --bad-fg: #f0a08c;
+      --bad-line: #8a4332;
+      --shadow: none;
+    }
+  }
+  #laundry-root * { box-sizing: border-box; }
+
+  .lb-wrap {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 26px 22px 40px;
+  }
+
+  .lb-masthead {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 12px;
+    margin-bottom: 4px;
+  }
+  .lb-masthead-left { display: flex; align-items: baseline; gap: 10px; }
+  .lb-masthead h1 {
+    font-family: 'Archivo Black', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 18px;
+    letter-spacing: 0.01em;
+    margin: 0;
+    text-transform: uppercase;
+  }
+  .lb-masthead .lb-loc {
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+  }
+  .lb-theme-toggle {
+    display: flex;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 2px;
+    gap: 1px;
+  }
+  .lb-theme-toggle button {
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 1;
+    background: none;
+    border: none;
+    border-radius: 12px;
+    padding: 4px 9px;
+    cursor: pointer;
+    color: var(--ink-faint);
+  }
+  .lb-theme-toggle button.active {
+    background: var(--ink);
+    color: var(--paper);
+  }
+
+  .lb-updated {
+    font-size: 10.5px;
+    color: var(--ink-faint);
+    margin: 8px 0 22px;
+    letter-spacing: 0.02em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .lb-updated button {
+    font-family: inherit;
+    font-size: 10.5px;
+    background: none;
+    border: 1px solid var(--line);
+    border-radius: 3px;
+    padding: 2px 9px;
+    cursor: pointer;
+    color: var(--ink-soft);
+  }
+  .lb-updated button:hover { color: var(--ink); border-color: var(--ink-soft); }
+
+  /* Verdict block */
+  .lb-verdict {
+    border: 1.5px solid var(--ink);
+    border-radius: 6px;
+    padding: 22px 20px;
+    margin-bottom: 28px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+  .lb-verdict.good { background: var(--good-bg); border-color: var(--good-line); }
+  .lb-verdict.warn { background: var(--warn-bg); border-color: var(--warn-line); }
+  .lb-verdict.bad  { background: var(--bad-bg);  border-color: var(--bad-line); }
+  .lb-verdict.loading { background: var(--card); }
+  .lb-verdict.good .lb-eyebrow,  .lb-verdict.good .lb-headline  { color: var(--good-fg); }
+  .lb-verdict.warn .lb-eyebrow,  .lb-verdict.warn .lb-headline  { color: var(--warn-fg); }
+  .lb-verdict.bad  .lb-eyebrow,  .lb-verdict.bad  .lb-headline  { color: var(--bad-fg); }
+
+  .lb-eyebrow {
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-soft);
+    margin-bottom: 8px;
+  }
+  .lb-headline {
+    font-family: 'Archivo Black', 'Helvetica Neue', Arial, sans-serif;
+    font-size: 25px;
+    line-height: 1.18;
+    margin: 0 0 10px;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+  .lb-sub {
+    font-size: 13.5px;
+    line-height: 1.55;
+    margin: 0;
+    color: var(--ink-soft);
+  }
+
+  /* Timeline */
+  .lb-timeline-label, .lb-strip-label {
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-faint);
+    margin-bottom: 10px;
+  }
+  .lb-timeline { margin-bottom: 30px; }
+  .lb-track { position: relative; height: 96px; }
+  .lb-track svg { width: 100%; height: 100%; display: block; }
+  .lb-track-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: var(--ink-faint);
+    margin-top: 6px;
+  }
+  .lb-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 16px;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+  }
+  .lb-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10px;
+    color: var(--ink-soft);
+  }
+  .lb-legend-item i {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    display: inline-block;
+    flex-shrink: 0;
+  }
+
+  /* Fabric picker */
+  .lb-fabric-picker { margin-bottom: 18px; }
+  .lb-fabric-chips { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 12px; }
+  .lb-fabric-chip {
+    font-family: inherit;
+    font-size: 11.5px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 6px 12px 6px 10px;
+    color: var(--ink-soft);
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  }
+  .lb-fabric-chip span { font-size: 13px; }
+  .lb-fabric-chip:hover { border-color: var(--ink-soft); }
+  .lb-fabric-chip.active {
+    background: var(--ink);
+    color: var(--paper);
+    border-color: var(--ink);
+  }
+  .lb-weather-readout {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 14px;
+    font-size: 10.5px;
+    color: var(--ink-faint);
+  }
+
+  /* Per-fabric breakdown */
+  .lb-fabric-breakdown {
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 28px;
+  }
+  .lb-fabric-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    background: var(--card);
+    border-bottom: 1px solid var(--line);
+    font-size: 12px;
+  }
+  .lb-fabric-row:last-child { border-bottom: none; }
+  .lb-fabric-row.worst { background: var(--warn-bg); }
+  .lb-fabric-row-name {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    color: var(--ink);
+    flex: 1;
+    min-width: 0;
+  }
+  .lb-fabric-row-name span:first-child { font-size: 14px; }
+  .lb-fabric-tag {
+    font-size: 8.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--warn-fg);
+    border: 1px solid var(--warn-line);
+    border-radius: 8px;
+    padding: 1px 6px;
+    margin-left: 4px;
+    flex-shrink: 0;
+  }
+  .lb-fabric-row-time { color: var(--ink-soft); font-size: 11px; white-space: nowrap; }
+  .lb-fabric-row-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .lb-fabric-row-dot.good { background: var(--good-line); }
+  .lb-fabric-row-dot.warn { background: var(--warn-line); }
+  .lb-fabric-row-dot.bad  { background: var(--bad-line); }
+
+  /* Schedule */
+  .lb-schedule { border-top: 1px solid var(--line); padding-top: 4px; margin-bottom: 8px; }
+  .lb-step {
+    display: flex;
+    gap: 14px;
+    padding: 12px 0;
+    border-bottom: 1px dashed var(--line);
+    align-items: baseline;
+  }
+  .lb-step:last-child { border-bottom: none; }
+  .lb-step-time {
+    font-weight: 700;
+    font-size: 13px;
+    min-width: 92px;
+    flex-shrink: 0;
+    color: var(--ink);
+  }
+  .lb-step-label { font-size: 13px; color: var(--ink-soft); }
+  .lb-step-label b { font-weight: 700; color: var(--ink); }
+
+  /* Forecast strip */
+  .lb-strip-label { margin: 30px 0 10px; }
+  .lb-strip {
+    display: flex;
+    gap: 1px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .lb-strip-cell {
+    flex: 1;
+    padding: 11px 4px 9px;
+    text-align: center;
+    font-size: 9.5px;
+    background: var(--card);
+    border-right: 1px solid var(--line);
+  }
+  .lb-strip-cell:last-child { border-right: none; }
+  .lb-strip-cell .lb-strip-time { color: var(--ink-faint); margin-bottom: 6px; }
+  .lb-strip-cell .lb-strip-icon { font-size: 16px; margin-bottom: 5px; display: block; }
+  .lb-strip-cell .lb-strip-cond { color: var(--ink-soft); font-size: 8.5px; line-height: 1.25; }
+
+  .lb-footnote {
+    font-size: 10px;
+    color: var(--ink-faint);
+    margin-top: 24px;
+    line-height: 1.6;
+    border-top: 1px solid var(--line);
+    padding-top: 16px;
+  }
+  .lb-error {
+    border: 1px dashed var(--bad-line);
+    border-radius: 6px;
+    padding: 14px 16px;
+    font-size: 12px;
+    color: var(--bad-fg);
+    background: var(--bad-bg);
+    margin-bottom: 20px;
+    line-height: 1.55;
+  }
+  .lb-spin {
+    display: inline-block;
+    width: 12px; height: 12px;
+    border: 2px solid var(--ink);
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: lb-spin 0.7s linear infinite;
+    margin-right: 6px;
+    vertical-align: -1px;
+  }
+  @keyframes lb-spin { to { transform: rotate(360deg); } }
+
+  @media (max-width: 420px) {
+    .lb-headline { font-size: 21px; }
+    .lb-strip-cell .lb-strip-icon { font-size: 14px; }
+    .lb-masthead h1 { font-size: 15px; }
+  }
+</style>
+
+<script>
+(function () {
+  const DRY_HOURS_BASELINE = 3.5;  // reference: light cotton, under "typical" Bedok conditions (70% RH, light breeze, partly cloudy)
+  const WASH_HOURS = 2;            // wash cycle + time to hang clothes
+  const LATEST_FINISH_HOUR = 19;   // don't want clothes drying past ~7pm
+  const EARLIEST_START_HOUR = 6;   // don't suggest starting before 6am
+
+  const FABRICS = [
+    { id: 'synthetic', label: 'Synthetic / activewear', icon: '🩳', mult: 0.6 },
+    { id: 'cotton',    label: 'Light cotton (tees, shirts)', icon: '👕', mult: 1.0 },
+    { id: 'linen',     label: 'Bedsheets / linen', icon: '🛏️', mult: 1.2 },
+    { id: 'denim',     label: 'Denim / jeans', icon: '👖', mult: 2.0 },
+    { id: 'towel',     label: 'Towels (terry cloth)', icon: '🧺', mult: 2.3 },
+  ];
+  const DEFAULT_FABRIC_IDS = ['cotton', 'towel']; // sensible default: a typical mixed load spans these
+
+  function humidityFactor(rh) {
+    if (rh == null) return 1.0;
+    if (rh <= 60) return 0.85;
+    if (rh <= 75) return 1.0;
+    if (rh <= 85) return 1.25;
+    return 1.5;
+  }
+  function windFactor(kmh) {
+    if (kmh == null) return 1.0;
+    if (kmh < 10) return 1.15;
+    if (kmh <= 20) return 1.0;
+    return 0.85;
+  }
+  function skyFactor(conditionText) {
+    const t = (conditionText || '').toLowerCase();
+    if (t.includes('thundery') || (t.includes('heavy') && t.includes('rain'))) return 1.4;
+    if (t.includes('shower') || t.includes('rain') || t.includes('drizzle')) return 1.3;
+    if (t.includes('cloudy') || t.includes('hazy')) return 1.15;
+    if (t.includes('fair') || t.includes('sunny')) return 0.85;
+    return 1.0;
+  }
+  // Geometric-ish mean of the three factors keeps any single extreme reading from dominating
+  function weatherMultiplier({ rh, windKmh, conditionText }) {
+    const hf = humidityFactor(rh), wf = windFactor(windKmh), sf = skyFactor(conditionText);
+    return Math.cbrt(hf * wf * sf);
+  }
+  function dryHoursFor(fabricId, wMult) {
+    const f = FABRICS.find(x => x.id === fabricId);
+    if (!f) return DRY_HOURS_BASELINE * wMult;
+    return DRY_HOURS_BASELINE * wMult * f.mult;
+  }
+
+  const root = document.getElementById('laundry-root');
+
+  function getStoredTheme() {
+    try { return localStorage.getItem('laundry-brief-theme'); } catch (e) { return null; }
+  }
+  function setStoredTheme(v) {
+    try { if (v) localStorage.setItem('laundry-brief-theme', v); else localStorage.removeItem('laundry-brief-theme'); } catch (e) {}
+  }
+  function applyTheme(theme) {
+    if (theme === 'light' || theme === 'dark') {
+      root.setAttribute('data-theme', theme);
+      document.documentElement.setAttribute('data-theme', theme);
+    } else {
+      root.removeAttribute('data-theme');
+      document.documentElement.removeAttribute('data-theme');
+    }
+  }
+  function currentTheme() {
+    const stored = getStoredTheme();
+    if (stored) return stored;
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  function themeToggleHTML() {
+    const active = currentTheme();
+    return `
+      <div class="lb-theme-toggle" role="group" aria-label="Theme">
+        <button id="lb-theme-light" class="${active === 'light' ? 'active' : ''}" aria-label="Light mode" title="Light mode">☀</button>
+        <button id="lb-theme-dark" class="${active === 'dark' ? 'active' : ''}" aria-label="Dark mode" title="Dark mode">☾</button>
+      </div>`;
+  }
+  function wireThemeToggle(rerender) {
+    document.getElementById('lb-theme-light')?.addEventListener('click', () => { setStoredTheme('light'); applyTheme('light'); rerender(); });
+    document.getElementById('lb-theme-dark')?.addEventListener('click', () => { setStoredTheme('dark'); applyTheme('dark'); rerender(); });
+  }
+  applyTheme(getStoredTheme());
+
+  function fmtHour(h) {
+    const hh = Math.floor(h);
+    const mm = Math.round((h - hh) * 60);
+    const period = hh >= 12 ? 'PM' : 'AM';
+    let h12 = hh % 12; if (h12 === 0) h12 = 12;
+    return mm === 0 ? `${h12}:00 ${period}` : `${h12}:${String(mm).padStart(2,'0')} ${period}`;
+  }
+
+  function parseHourFromISO(iso) {
+    const d = new Date(iso);
+    return d.getHours() + d.getMinutes() / 60;
+  }
+
+  function conditionToRisk(forecastText) {
+    const t = (forecastText || '').toLowerCase();
+    if (t.includes('thundery')) return { level: 3, icon: '⛈', label: 'Thundery' };
+    if (t.includes('heavy') && t.includes('rain')) return { level: 3, icon: '🌧', label: 'Heavy rain' };
+    if (t.includes('shower') || t.includes('rain') || t.includes('drizzle')) return { level: 2, icon: '🌦', label: 'Showers' };
+    if (t.includes('cloudy')) return { level: 1, icon: '☁️', label: 'Cloudy' };
+    if (t.includes('hazy')) return { level: 1, icon: '🌫', label: 'Hazy' };
+    if (t.includes('fair') || t.includes('sunny')) return { level: 0, icon: '☀️', label: 'Fair' };
+    return { level: 1, icon: '⛅', label: forecastText || 'Unknown' };
+  }
+
+  function findAreaForecast(data, areaName) {
+    try {
+      const items = data?.data?.items || data?.items;
+      const areaMeta = data?.data?.area_metadata || data?.data?.areaMetadata || data?.area_metadata;
+      if (!items || !items.length) return null;
+      const latest = items[items.length - 1];
+      const forecasts = latest.forecasts || [];
+      const match = forecasts.find(f => (f.area || f.name || '').toLowerCase() === areaName.toLowerCase());
+      return { forecast: match, validPeriod: latest.valid_period || latest.validPeriod, timestamp: latest.timestamp, areaMeta };
+    } catch (e) { return null; }
+  }
+
+  async function fetchJSON(url) {
+    const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return res.json();
+  }
+
+  // Bedok is in eastern Singapore; pick the station reading closest to it from a v1-style
+  // { metadata: { stations: [{id, location:{lat,lng}}] }, items: [{ readings: [{station_id, value}] }] } payload.
+  const BEDOK_LAT = 1.3236, BEDOK_LNG = 103.9273;
+  function nearestStationReading(data) {
+    try {
+      const stations = data?.metadata?.stations || data?.data?.stations || [];
+      const items = data?.items || data?.data?.readings || [];
+      if (!stations.length || !items.length) return null;
+      let best = null, bestDist = Infinity;
+      for (const s of stations) {
+        const lat = s.location?.latitude ?? s.location?.lat;
+        const lng = s.location?.longitude ?? s.location?.lng;
+        if (lat == null || lng == null) continue;
+        const d = Math.hypot(lat - BEDOK_LAT, lng - BEDOK_LNG);
+        if (d < bestDist) { bestDist = d; best = s; }
+      }
+      if (!best) return null;
+      const latest = items[items.length - 1];
+      const readings = latest.readings || [];
+      const match = readings.find(r => r.station_id === best.id);
+      return match ? match.value : null;
+    } catch (e) { return null; }
+  }
+
+  async function loadWeather() {
+    const endpoints2hr = [
+      'https://api-open.data.gov.sg/v2/real-time/api/two-hour-weather-forecast',
+      'https://api.data.gov.sg/v1/environment/2-hour-weather-forecast'
+    ];
+    const endpoints24hr = [
+      'https://api-open.data.gov.sg/v2/real-time/api/twenty-four-hour-weather-forecast',
+      'https://api.data.gov.sg/v1/environment/24-hour-weather-forecast'
+    ];
+    const endpointsHumidity = ['https://api.data.gov.sg/v1/environment/relative-humidity'];
+    const endpointsWind = ['https://api.data.gov.sg/v1/environment/wind-speed'];
+
+    let nowcast = null, lastErr = null;
+    for (const url of endpoints2hr) {
+      try { nowcast = await fetchJSON(url); if (nowcast) break; } catch (e) { lastErr = e; }
+    }
+    let outlook24 = null;
+    for (const url of endpoints24hr) {
+      try { outlook24 = await fetchJSON(url); if (outlook24) break; } catch (e) { /* non-fatal */ }
+    }
+    if (!nowcast) throw lastErr || new Error('No nowcast data available');
+
+    // Humidity and wind are nice-to-have refinements — failures here are non-fatal,
+    // the model just falls back to condition-text-only weather adjustment.
+    let humidity = null, windKmh = null;
+    try {
+      const h = await fetchJSON(endpointsHumidity[0]);
+      humidity = nearestStationReading(h);
+    } catch (e) { /* fall back silently */ }
+    try {
+      const w = await fetchJSON(endpointsWind[0]);
+      const knots = nearestStationReading(w);
+      // NEA's real-time station feed reports wind speed in knots; convert to km/h for our thresholds.
+      windKmh = knots != null ? knots * 1.852 : null;
+    } catch (e) { /* fall back silently */ }
+
+    return { nowcast, outlook24, humidity, windKmh };
+  }
+
+  function render(state) {
+    if (state.status === 'loading') {
+      root.innerHTML = `
+        <div class="lb-wrap">
+          <div class="lb-masthead">
+            <div class="lb-masthead-left"><h1>Laundry Brief</h1><span class="lb-loc">Bedok, SG</span></div>
+            ${themeToggleHTML()}
+          </div>
+          <div class="lb-updated">Checking the sky…</div>
+          <div class="lb-verdict loading">
+            <div class="lb-eyebrow">Reading live forecast</div>
+            <div class="lb-headline"><span class="lb-spin"></span>One moment</div>
+            <p class="lb-sub">Pulling the latest 2-hour nowcast and 24-hour outlook from MSS / NEA for Bedok.</p>
+          </div>
+        </div>`;
+      wireThemeToggle(() => render(state));
+      return;
+    }
+
+    if (state.status === 'error') {
+      root.innerHTML = `
+        <div class="lb-wrap">
+          <div class="lb-masthead">
+            <div class="lb-masthead-left"><h1>Laundry Brief</h1><span class="lb-loc">Bedok, SG</span></div>
+            ${themeToggleHTML()}
+          </div>
+          <div class="lb-updated">Live fetch failed<button id="lb-retry">Retry</button></div>
+          <div class="lb-error">
+            Couldn't reach the live NEA forecast (${state.message || 'network error'}).
+            This can happen if the endpoint path has changed or the request was blocked.
+            Tap retry, or check weather.gov.sg directly for Bedok's 2-hour nowcast and 24-hour outlook.
+          </div>
+        </div>`;
+      document.getElementById('lb-retry')?.addEventListener('click', boot);
+      wireThemeToggle(() => render(state));
+      return;
+    }
+
+    const { areaCondition, riskNow, hourly, hourlyRiskFull, dailyHigh, dailyLow, humidityRange, regionOutlook, nowHour, plan, fetchedAt, fabricPlans, slowestFabricId, humidity, windKmh, wMult } = state.data;
+
+    const verdictClass = plan.verdict === 'good' ? 'good' : plan.verdict === 'warn' ? 'warn' : 'bad';
+
+    const slowestFabric = FABRICS.find(f => f.id === slowestFabricId) || FABRICS.find(f => f.id === 'cotton');
+    let headline, sub;
+    if (plan.verdict === 'good') {
+      headline = `Start by ${fmtHour(plan.startBy)}`;
+      sub = `Wash now and you'll have it on the line by ${fmtHour(plan.hangBy)}, with roughly ${plan.dryWindowHours.toFixed(1)}h of dry time before conditions turn. Good margin — based on your slowest-drying pick, ${slowestFabric.label.toLowerCase()}.`;
+    } else if (plan.verdict === 'warn') {
+      headline = `Start by ${fmtHour(plan.startBy)} — tight`;
+      sub = `You'd hang by ${fmtHour(plan.hangBy)}, leaving about ${plan.dryWindowHours.toFixed(1)}h before the window narrows for ${slowestFabric.label.toLowerCase()}. Workable, but watch the sky and have a backup plan.`;
+    } else {
+      headline = `Not today, Bedok`;
+      sub = `Even starting right now there isn't a clean ${plan.dryHours.toFixed(1)}h drying window for ${slowestFabric.label.toLowerCase()} before showers are expected. Better to wait for a clearer day or use a dryer / indoor rack today.`;
+    }
+
+    const stepsHTML = plan.verdict !== 'bad' ? `
+      <div class="lb-schedule">
+        <div class="lb-step"><div class="lb-step-time">${fmtHour(plan.startBy)}</div><div class="lb-step-label">Start washing — <b>${WASH_HOURS}h</b> for wash + hang</div></div>
+        <div class="lb-step"><div class="lb-step-time">${fmtHour(plan.hangBy)}</div><div class="lb-step-label">Clothes on the line, drying begins</div></div>
+        <div class="lb-step"><div class="lb-step-time">${fmtHour(plan.dryBy)}</div><div class="lb-step-label">Dry, assuming <b>${plan.dryHours.toFixed(1)}h</b> for ${slowestFabric.label.toLowerCase()} today</div></div>
+        <div class="lb-step"><div class="lb-step-time">${fmtHour(plan.riskAt)}</div><div class="lb-step-label">Rain risk rises — bring it in if not already dry</div></div>
+      </div>` : '';
+
+    const stripHTML = hourly.map(h => `
+      <div class="lb-strip-cell">
+        <div class="lb-strip-time">${fmtHour(h.hour)}</div>
+        <span class="lb-strip-icon">${h.icon}</span>
+        <div class="lb-strip-cond">${h.label}</div>
+      </div>`).join('');
+
+    // Timeline SVG: 6am to 8pm
+    const tlStart = 6, tlEnd = 20, tlSpan = tlEnd - tlStart;
+    const W = 600, H = 92, pad = 6;
+    const xOf = (h) => pad + ((h - tlStart) / tlSpan) * (W - pad * 2);
+    const clampH = (h) => Math.max(tlStart, Math.min(tlEnd, h));
+
+    const stageTop = 10, stageH = 22;
+    const riskTop = stageTop + stageH + 10, riskH = 10;
+
+    const startX = xOf(clampH(plan.startBy));
+    const hangX = xOf(clampH(plan.hangBy));
+    const dryX = xOf(clampH(plan.dryBy));
+    const riskAtX = xOf(clampH(plan.riskAt));
+    const nowX = nowHour >= tlStart && nowHour <= tlEnd ? xOf(nowHour) : null;
+
+    // Stage 1: wash & hang (startBy -> hangBy)
+    const washX0 = startX, washX1 = hangX;
+    // Stage 2: drying (hangBy -> dryBy), capped to riskAt if rain risk cuts in before drying finishes
+    const dryingX0 = hangX, dryingX1 = Math.min(dryX, xOf(tlEnd));
+    // Safe buffer remaining after drying completes, before risk rises (only when plan succeeds with margin)
+    const bufferX0 = dryingX1, bufferX1 = Math.max(dryingX1, riskAtX);
+
+    const stageRectsParts = [];
+    if (washX1 > washX0) stageRectsParts.push(`<rect x="${washX0}" y="${stageTop}" width="${washX1-washX0}" height="${stageH}" rx="3" fill="var(--rope)" opacity="0.85"/>`);
+    if (dryingX1 > dryingX0) stageRectsParts.push(`<rect x="${dryingX0}" y="${stageTop}" width="${dryingX1-dryingX0}" height="${stageH}" rx="3" fill="${plan.verdict==='good' ? 'var(--good-line)' : 'var(--warn-line)'}" opacity="0.85"/>`);
+    if (plan.verdict !== 'bad' && bufferX1 > bufferX0) stageRectsParts.push(`<rect x="${bufferX0}" y="${stageTop}" width="${bufferX1-bufferX0}" height="${stageH}" rx="3" fill="var(--good-line)" opacity="0.25"/>`);
+    const stageRects = stageRectsParts.join('');
+
+    // Rain-risk heat strip across the full day using hourlyRiskFull (6..20, every hour)
+    const riskColor = (lvl) => lvl >= 3 ? 'var(--bad-line)' : lvl === 2 ? 'var(--warn-line)' : lvl === 1 ? 'var(--ink-faint)' : 'var(--good-line)';
+    const riskCells = hourlyRiskFull.map((r, i) => {
+      const x0 = xOf(r.hour);
+      const x1 = i < hourlyRiskFull.length - 1 ? xOf(hourlyRiskFull[i+1].hour) : xOf(tlEnd);
+      return `<rect x="${x0}" y="${riskTop}" width="${Math.max(0,x1-x0)}" height="${riskH}" fill="${riskColor(r.level)}" opacity="0.55"/>`;
+    }).join('');
+
+    const svg = `
+      <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+        <text x="${pad}" y="${stageTop - 2}" font-size="8.5" fill="var(--ink-faint)" font-family="monospace">LAUNDRY STAGES</text>
+        <rect x="${pad}" y="${stageTop}" width="${W-pad*2}" height="${stageH}" rx="3" fill="var(--line)"/>
+        ${stageRects}
+        <text x="${pad}" y="${riskTop - 2}" font-size="8.5" fill="var(--ink-faint)" font-family="monospace">RAIN RISK</text>
+        <rect x="${pad}" y="${riskTop}" width="${W-pad*2}" height="${riskH}" rx="2" fill="var(--line)"/>
+        ${riskCells}
+        <line x1="${startX}" y1="${stageTop-4}" x2="${startX}" y2="${riskTop+riskH+4}" stroke="var(--ink)" stroke-width="1" stroke-dasharray="2,2" opacity="0.4"/>
+        ${nowX !== null ? `<line x1="${nowX}" y1="2" x2="${nowX}" y2="${H-2}" stroke="var(--ink)" stroke-width="1.5"/><circle cx="${nowX}" cy="2" r="2.5" fill="var(--ink)"/><text x="${nowX}" y="${H-2}" font-size="8" fill="var(--ink)" font-family="monospace" text-anchor="${nowX > W-40 ? 'end' : 'start'}" dx="${nowX > W-40 ? -4 : 4}">now</text>` : ''}
+      </svg>`;
+
+    const legendHTML = `
+      <div class="lb-legend">
+        <span class="lb-legend-item"><i style="background:var(--rope)"></i>Wash &amp; hang</span>
+        <span class="lb-legend-item"><i style="background:${plan.verdict==='good' ? 'var(--good-line)' : 'var(--warn-line)'}"></i>Drying</span>
+        <span class="lb-legend-item"><i style="background:var(--good-line);opacity:.4"></i>Safe buffer</span>
+        <span class="lb-legend-item"><i style="background:var(--ink-faint);opacity:.55"></i>Low risk</span>
+        <span class="lb-legend-item"><i style="background:var(--warn-line);opacity:.55"></i>Showers</span>
+        <span class="lb-legend-item"><i style="background:var(--bad-line);opacity:.55"></i>Thundery</span>
+      </div>`;
+
+    const fabricChipsHTML = FABRICS.map(f => `
+      <button class="lb-fabric-chip ${selectedFabricIds.includes(f.id) ? 'active' : ''}" data-fabric="${f.id}">
+        <span>${f.icon}</span>${f.label}
+      </button>`).join('');
+
+    const fabricBreakdownHTML = fabricPlans.map(fp => {
+      const isWorst = fp.id === slowestFabricId;
+      const fv = fp.plan.verdict;
+      return `
+        <div class="lb-fabric-row ${isWorst ? 'worst' : ''}">
+          <div class="lb-fabric-row-name"><span>${fp.fabric.icon}</span>${fp.fabric.label}${isWorst ? '<span class="lb-fabric-tag">sets the plan</span>' : ''}</div>
+          <div class="lb-fabric-row-time">~${fp.dryHours.toFixed(1)}h dry · ready by <b>${fmtHour(fp.plan.dryBy)}</b></div>
+          <div class="lb-fabric-row-dot ${fv}"></div>
+        </div>`;
+    }).join('');
+
+    const weatherReadoutHTML = `
+      <div class="lb-weather-readout">
+        <span>${humidity != null ? `Humidity ${Math.round(humidity)}%` : 'Humidity n/a'}</span>
+        <span>${windKmh != null ? `Wind ${windKmh.toFixed(0)} km/h` : 'Wind n/a'}</span>
+        <span>Drying speed ${wMult < 0.95 ? 'faster' : wMult > 1.1 ? 'slower' : 'typical'} than usual (×${wMult.toFixed(2)})</span>
+      </div>`;
+
+    root.innerHTML = `
+      <div class="lb-wrap">
+        <div class="lb-masthead">
+          <div class="lb-masthead-left"><h1>Laundry Brief</h1><span class="lb-loc">Bedok, SG</span></div>
+          ${themeToggleHTML()}
+        </div>
+        <div class="lb-updated">Live · MSS/NEA · fetched ${fetchedAt}<button id="lb-retry">Refresh</button></div>
+
+        <div class="lb-verdict ${verdictClass}">
+          <div class="lb-eyebrow">Right now: ${riskNow.icon} ${areaCondition}${regionOutlook ? ' · ' + regionOutlook : ''}</div>
+          <h2 class="lb-headline">${headline}</h2>
+          <p class="lb-sub">${sub}</p>
+        </div>
+
+        <div class="lb-fabric-picker">
+          <div class="lb-timeline-label">What's in the load?</div>
+          <div class="lb-fabric-chips">${fabricChipsHTML}</div>
+          ${weatherReadoutHTML}
+        </div>
+
+        <div class="lb-fabric-breakdown">${fabricBreakdownHTML}</div>
+
+        <div class="lb-timeline">
+          <div class="lb-timeline-label">Today's window — 6 AM to 8 PM</div>
+          <div class="lb-track">${svg}</div>
+          <div class="lb-track-labels"><span>6 AM</span><span>10 AM</span><span>2 PM</span><span>6 PM</span><span>8 PM</span></div>
+          ${legendHTML}
+        </div>
+
+        ${stepsHTML}
+
+        <div class="lb-strip-label">Hour-by-hour outlook</div>
+        <div class="lb-strip">${stripHTML}</div>
+
+        <div class="lb-footnote">
+          High ${dailyHigh}°C · Low ${dailyLow}°C · RH ${humidityRange}<br/>
+          Plan assumes ${WASH_HOURS}h to wash and hang, then fabric- and weather-adjusted dry time for your selected load. Singapore's afternoon thundery showers can build faster than forecast — bring laundry in early if clouds darken.
+        </div>
+      </div>`;
+
+    document.getElementById('lb-retry')?.addEventListener('click', boot);
+    wireThemeToggle(() => render(state));
+    document.querySelectorAll('.lb-fabric-chip').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-fabric');
+        const idx = selectedFabricIds.indexOf(id);
+        if (idx >= 0) {
+          if (selectedFabricIds.length > 1) selectedFabricIds.splice(idx, 1); // keep at least one selected
+        } else {
+          selectedFabricIds.push(id);
+        }
+        setStoredFabrics(selectedFabricIds);
+        boot();
+      });
+    });
+  }
+
+  function buildPlan(nowHour, hourlyRiskByHour, dryHours) {
+    // hourlyRiskByHour: array of {hour, level} for hour 6..20, level 0(fair)-3(thundery/heavy)
+    // Rain risk threshold: level >= 2 counts as "wet risk"
+    const findRiskStart = (fromHour) => {
+      for (const h of hourlyRiskByHour) {
+        if (h.hour >= fromHour && h.level >= 2) return h.hour;
+      }
+      return 20; // no risk found in window -> treat end of day as boundary
+    };
+
+    // Try starting now (rounded up to next 15 min), else nearest feasible later start, else fail
+    const candidateStart = Math.max(EARLIEST_START_HOUR, Math.ceil(nowHour * 4) / 4);
+    const riskAt = findRiskStart(candidateStart);
+    const hangBy = candidateStart + WASH_HOURS;
+    const dryBy = hangBy + dryHours;
+    const dryWindowHours = riskAt - hangBy;
+
+    let verdict;
+    if (dryBy <= riskAt && dryBy <= LATEST_FINISH_HOUR) verdict = 'good';
+    else if (dryWindowHours >= dryHours * 0.7 && hangBy < riskAt) verdict = 'warn';
+    else verdict = 'bad';
+
+    return { startBy: candidateStart, hangBy, dryBy, riskAt, dryWindowHours, verdict, dryHours };
+  }
+
+  function getStoredFabrics() {
+    try {
+      const raw = localStorage.getItem('laundry-brief-fabrics');
+      if (!raw) return null;
+      const ids = JSON.parse(raw);
+      return Array.isArray(ids) && ids.length ? ids.filter(id => FABRICS.some(f => f.id === id)) : null;
+    } catch (e) { return null; }
+  }
+  function setStoredFabrics(ids) {
+    try { localStorage.setItem('laundry-brief-fabrics', JSON.stringify(ids)); } catch (e) {}
+  }
+  let selectedFabricIds = getStoredFabrics() || DEFAULT_FABRIC_IDS.slice();
+
+  async function boot() {
+    render({ status: 'loading' });
+    try {
+      const { nowcast, outlook24, humidity, windKmh } = await loadWeather();
+      const areaInfo = findAreaForecast(nowcast, 'Bedok');
+      const areaCondition = areaInfo?.forecast?.forecast || areaInfo?.forecast?.condition || 'No data for Bedok';
+      const riskNow = conditionToRisk(areaCondition);
+
+      const now = new Date();
+      const nowHour = now.getHours() + now.getMinutes() / 60;
+
+      // Build hourly risk profile 6am-8pm using 24hr regional (east) forecast text as a coarse signal,
+      // refined by the 2-hour nowcast for the immediate hours.
+      let regionOutlook = null;
+      let dailyHigh = '—', dailyLow = '—', humidityRange = '—';
+      const hourlyDisplay = [];
+      const hourlyRisk = [];
+
+      const generalForecast = outlook24?.data?.records?.[0]?.general || outlook24?.items?.[0]?.general;
+      if (generalForecast) {
+        dailyHigh = generalForecast.temperature?.high ?? dailyHigh;
+        dailyLow = generalForecast.temperature?.low ?? dailyLow;
+        const rh = generalForecast.relative_humidity || generalForecast.relativeHumidity;
+        if (rh?.low != null && rh?.high != null) humidityRange = `${rh.low}–${rh.high}%`;
+        regionOutlook = generalForecast.forecast?.text || generalForecast.forecast || null;
+      }
+      const periods = outlook24?.data?.records?.[0]?.periods || outlook24?.items?.[0]?.periods;
+
+      // Build hourly risk 6–20 from 24hr period data (east region) if available, else heuristic fallback
+      const periodRiskByHour = {};
+      if (periods && periods.length) {
+        for (const p of periods) {
+          const s = parseHourFromISO(p.timePeriod?.start || p.time?.start);
+          const e = parseHourFromISO(p.timePeriod?.end || p.time?.end);
+          const r = conditionToRisk(p.regions?.east || '');
+          for (let h = Math.floor(s); h < Math.ceil(e) && h <= 20; h++) periodRiskByHour[h] = r;
+        }
+      }
+      const hasPeriodData = Object.keys(periodRiskByHour).length > 0;
+      const afternoonRisky = !hasPeriodData && /thunder|shower|rain/i.test(regionOutlook || areaCondition || '');
+
+      for (let h = 6; h <= 20; h++) {
+        let r;
+        if (hasPeriodData) {
+          r = periodRiskByHour[h] ?? { level: 0, icon: '☀️', label: 'Fair' };
+        } else if (h <= 9) {
+          r = riskNow.level >= 2 ? riskNow : { level: 0, icon: '☀️', label: 'Fair' };
+        } else if (h <= 12) {
+          r = { level: 1, icon: '⛅', label: 'Partly cloudy' };
+        } else if (h <= 18 && afternoonRisky) {
+          r = { level: 3, icon: '⛈', label: 'Thundery showers' };
+        } else if (h <= 18) {
+          r = { level: 1, icon: '⛅', label: 'Partly cloudy' };
+        } else {
+          r = { level: 1, icon: '☁️', label: 'Cloudy' };
+        }
+        hourlyRisk.push({ hour: h, level: r.level });
+        if (h % 2 === 0) hourlyDisplay.push({ hour: h, icon: r.icon, label: r.label });
+      }
+      // Overlay current nowcast on the nearest display slot
+      const nearest = hourlyDisplay.reduce((a, b) => Math.abs(b.hour - nowHour) < Math.abs(a.hour - nowHour) ? b : a, hourlyDisplay[0]);
+      if (nearest) { nearest.icon = riskNow.icon; nearest.label = riskNow.label; }
+
+      const wMult = weatherMultiplier({ rh: humidity, windKmh, conditionText: areaCondition || regionOutlook });
+
+      // Build a plan per selected fabric, then pick the slowest-drying selected fabric to
+      // drive the headline verdict — that's the realistic constraint for a mixed load.
+      const fabricPlans = selectedFabricIds.map(id => {
+        const dh = dryHoursFor(id, wMult);
+        return { id, fabric: FABRICS.find(f => f.id === id), dryHours: dh, plan: buildPlan(nowHour, hourlyRisk, dh) };
+      });
+      fabricPlans.sort((a, b) => b.dryHours - a.dryHours);
+      const slowest = fabricPlans[0] || { id: 'cotton', fabric: FABRICS.find(f => f.id === 'cotton'), dryHours: DRY_HOURS_BASELINE * wMult, plan: buildPlan(nowHour, hourlyRisk, DRY_HOURS_BASELINE * wMult) };
+      const plan = slowest.plan;
+
+      render({
+        status: 'ready',
+        data: {
+          areaCondition, riskNow, hourly: hourlyDisplay, hourlyRiskFull: hourlyRisk, dailyHigh, dailyLow, humidityRange,
+          regionOutlook, nowHour, plan, fabricPlans, slowestFabricId: slowest.id,
+          humidity, windKmh, wMult,
+          fetchedAt: now.toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit' })
+        }
+      });
+    } catch (err) {
+      render({ status: 'error', message: err?.message });
+    }
+  }
+
+  boot();
+})();
+</script>
+</body>
+</html>
