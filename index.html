@@ -247,6 +247,19 @@
     color: var(--ink-faint);
     margin-bottom: 10px;
   }
+  .lb-est-badge {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 1px 6px;
+    background: var(--warn-bg);
+    border: 1px solid var(--warn-line);
+    border-radius: 8px;
+    font-size: 8.5px;
+    letter-spacing: 0.08em;
+    color: var(--warn-fg);
+    vertical-align: middle;
+    cursor: help;
+  }
   .lb-timeline { margin-bottom: 30px; }
   .lb-track { position: relative; height: 96px; }
   .lb-track svg { width: 100%; height: 100%; display: block; }
@@ -724,7 +737,7 @@
 
     // NB: locationMode is intentionally NOT destructured here — it's the module-level `let`
     // so the toggle handlers below can reassign it (a const copy would throw on assignment).
-    const { areaCondition, riskNow, hourly, hourlyRiskFull, dailyHigh, dailyLow, humidityRange, regionOutlook, nowHour, plan, fetchedAt, fabricPlans, slowestFabricId, humidity, windKmh, wMult, isTomorrow, areaName, gpsAreaName, storedHome, showLocationToggle, canSaveHome } = state.data;
+    const { areaCondition, riskNow, hourly, hourlyRiskFull, dailyHigh, dailyLow, humidityRange, regionOutlook, nowHour, plan, fetchedAt, fabricPlans, slowestFabricId, humidity, windKmh, wMult, isTomorrow, areaName, gpsAreaName, storedHome, showLocationToggle, canSaveHome, estimated } = state.data;
 
     document.title = `Laundry Brief — ${areaName}`;
 
@@ -865,6 +878,12 @@
         </div>`
       : `<span class="lb-loc" id="lb-loc-label"${canSaveHome ? ' data-saveable="true" title="Tap to save as home"' : ''}>${locationMode === 'home' ? '🏠' : '📍'} ${areaName}, SG</span>`;
 
+    // When the 24h forecast had no usable period data, the hourly profile is a coarse
+    // time-of-day heuristic, not a real per-hour forecast — flag it so the user can tell.
+    const estBadge = estimated
+      ? `<span class="lb-est-badge" title="No detailed hourly forecast was available — this is a coarse estimate from the day's general outlook">estimated</span>`
+      : '';
+
     root.innerHTML = `
       <div class="lb-wrap">
         <div class="lb-masthead">
@@ -888,7 +907,7 @@
         <div class="lb-fabric-breakdown">${fabricBreakdownHTML}</div>
 
         <div class="lb-timeline">
-          <div class="lb-timeline-label">${isTomorrow ? "Tomorrow's window" : "Today's window"} — 6 AM to 8 PM</div>
+          <div class="lb-timeline-label">${isTomorrow ? "Tomorrow's window" : "Today's window"} — 6 AM to 8 PM${estBadge}</div>
           <div class="lb-track"><span class="lb-track-cap lb-track-cap-stage">Laundry stages</span><span class="lb-track-cap lb-track-cap-risk">Rain risk</span>${svg}</div>
           <div class="lb-track-labels"><span>6 AM</span><span>10 AM</span><span>2 PM</span><span>6 PM</span><span>8 PM</span></div>
           ${legendHTML}
@@ -896,7 +915,7 @@
 
         ${stepsHTML}
 
-        <div class="lb-strip-label">Hour-by-hour outlook</div>
+        <div class="lb-strip-label">Hour-by-hour outlook${estBadge}</div>
         <div class="lb-strip">${stripHTML}</div>
 
         <div class="lb-footnote">
@@ -1100,7 +1119,12 @@
         }
       }
       const hasPeriodData = Object.keys(periodRiskByHour).length > 0;
-      const afternoonRisky = !hasPeriodData && /thunder|shower|rain/i.test(regionOutlook || areaCondition || '');
+      // Heuristic-only: if the day's text mentions wet weather, flag the afternoon — but let
+      // conditionToRisk set the actual severity (Showers=2 vs Thundery=3) rather than always
+      // assuming the worst. Null when the text is dry, so the afternoon stays partly cloudy.
+      const afternoonRisk = (!hasPeriodData && /thunder|shower|rain/i.test(regionOutlook || areaCondition || ''))
+        ? conditionToRisk(regionOutlook || areaCondition)
+        : null;
 
       for (let h = 6; h <= 20; h++) {
         let r;
@@ -1110,8 +1134,8 @@
           r = riskNow.level >= 2 ? riskNow : { level: 0, icon: '☀️', label: 'Fair' };
         } else if (h <= 12) {
           r = { level: 1, icon: '⛅', label: 'Partly cloudy' };
-        } else if (h <= 18 && afternoonRisky) {
-          r = { level: 3, icon: '⛈', label: 'Thundery showers' };
+        } else if (h <= 18 && afternoonRisk) {
+          r = afternoonRisk;
         } else if (h <= 18) {
           r = { level: 1, icon: '⛅', label: 'Partly cloudy' };
         } else {
@@ -1144,7 +1168,7 @@
         status: 'ready',
         data: {
           areaCondition, riskNow, hourly: hourlyDisplay, hourlyRiskFull: hourlyRisk, dailyHigh, dailyLow, humidityRange,
-          regionOutlook, nowHour, plan, fabricPlans, slowestFabricId: slowest.id,
+          regionOutlook, nowHour, plan, fabricPlans, slowestFabricId: slowest.id, estimated: !hasPeriodData,
           humidity, windKmh, wMult, isTomorrow,
           areaName, locationMode, gpsAreaName, storedHome, showLocationToggle, canSaveHome,
           fetchedAt: now.toLocaleTimeString('en-SG', { hour: '2-digit', minute: '2-digit' })
