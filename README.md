@@ -45,16 +45,20 @@ You won't see a toggle right after saving — because you're *at* home, there's 
 
 ### Switching between Here and Home
 
-When you're **away** from home (your GPS area differs from your saved home), a toggle appears in the masthead:
+When you're **away** from home (your GPS area differs from your saved home), a toggle appears in the masthead, labelled with the two area names:
 
 ```
-📍 Here  |  🏠 Home
+📍 Tampines  |  🏠 Bedok
 ```
 
-- **📍 Here** — forecast for where you currently are.
-- **🏠 Home** — forecast for your saved home, so you can decide whether to rush back for the washing.
+- **📍 [your area]** — forecast for where you currently are.
+- **🏠 [home]** — forecast for your saved home, so you can decide whether to rush back for the washing.
 
 Your choice is remembered between visits.
+
+### Changing your home
+
+To replace an existing home with somewhere new: while on **📍** (your current location) and away from your saved home, a small **"Set [area] as home"** link appears under the toggle. Tap it to overwrite the saved home with where you are now. The toggle then disappears, since you're once again *at* home.
 
 ## Refreshing
 

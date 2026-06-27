@@ -148,6 +148,20 @@
     background: var(--ink);
     color: var(--paper);
   }
+  .lb-loc-stack { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+  .lb-sethome {
+    font-family: inherit;
+    font-size: 9.5px;
+    line-height: 1;
+    background: none;
+    border: none;
+    padding: 0 2px;
+    cursor: pointer;
+    color: var(--ink-faint);
+    text-decoration: underline dotted;
+    letter-spacing: 0.03em;
+  }
+  .lb-sethome:hover { color: var(--ink); }
   .lb-loc-toggle { display: flex; border: 1px solid var(--line); border-radius: 14px; padding: 2px; gap: 1px; }
   .lb-loc-toggle button {
     font-family: inherit;
@@ -236,6 +250,19 @@
   .lb-timeline { margin-bottom: 30px; }
   .lb-track { position: relative; height: 96px; }
   .lb-track svg { width: 100%; height: 100%; display: block; }
+  /* Bar captions in HTML (not SVG) so they keep full width on narrow screens. */
+  .lb-track-cap {
+    position: absolute;
+    left: 1px;
+    font-size: 8.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    pointer-events: none;
+    z-index: 1;
+  }
+  .lb-track-cap-stage { top: 0; }
+  .lb-track-cap-risk { top: 34px; }
   .lb-track-labels {
     display: flex;
     justify-content: space-between;
@@ -695,7 +722,9 @@
       return;
     }
 
-    const { areaCondition, riskNow, hourly, hourlyRiskFull, dailyHigh, dailyLow, humidityRange, regionOutlook, nowHour, plan, fetchedAt, fabricPlans, slowestFabricId, humidity, windKmh, wMult, isTomorrow, areaName, locationMode, gpsAreaName, storedHome, showLocationToggle, canSaveHome } = state.data;
+    // NB: locationMode is intentionally NOT destructured here — it's the module-level `let`
+    // so the toggle handlers below can reassign it (a const copy would throw on assignment).
+    const { areaCondition, riskNow, hourly, hourlyRiskFull, dailyHigh, dailyLow, humidityRange, regionOutlook, nowHour, plan, fetchedAt, fabricPlans, slowestFabricId, humidity, windKmh, wMult, isTomorrow, areaName, gpsAreaName, storedHome, showLocationToggle, canSaveHome } = state.data;
 
     document.title = `Laundry Brief — ${areaName}`;
 
@@ -771,12 +800,13 @@
       return `<rect x="${x0}" y="${riskTop}" width="${Math.max(0,x1-x0)}" height="${riskH}" fill="${riskColor(r.level)}" opacity="0.55"/>`;
     }).join('');
 
+    // Bar labels live in HTML (see .lb-track-cap), not in the SVG: the SVG uses
+    // preserveAspectRatio="none", which on a narrow screen squashes the x-axis and
+    // would horizontally compress any <text>. Rects don't visibly suffer.
     const svg = `
       <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
-        <text x="${pad}" y="${stageTop - 2}" font-size="8.5" fill="var(--ink-faint)" font-family="monospace">LAUNDRY STAGES</text>
         <rect x="${pad}" y="${stageTop}" width="${W-pad*2}" height="${stageH}" rx="3" fill="var(--line)"/>
         ${stageRects}
-        <text x="${pad}" y="${riskTop - 2}" font-size="8.5" fill="var(--ink-faint)" font-family="monospace">RAIN RISK</text>
         <rect x="${pad}" y="${riskTop}" width="${W-pad*2}" height="${riskH}" rx="2" fill="var(--line)"/>
         ${riskCells}
         <line x1="${startX}" y1="${stageTop-4}" x2="${startX}" y2="${riskTop+riskH+4}" stroke="var(--ink)" stroke-width="1" stroke-dasharray="2,2" opacity="0.4"/>
@@ -824,9 +854,14 @@
       </div>`;
 
     const locationHTML = showLocationToggle
-      ? `<div class="lb-loc-toggle" role="group" aria-label="Location">
-          <button id="lb-loc-gps" class="${locationMode === 'gps' ? 'active' : ''}" title="Use current location">📍 ${gpsAreaName}</button>
-          <button id="lb-loc-home" class="${locationMode === 'home' ? 'active' : ''}" title="Use saved home">🏠 ${storedHome.label}</button>
+      ? `<div class="lb-loc-stack">
+          <div class="lb-loc-toggle" role="group" aria-label="Location">
+            <button id="lb-loc-gps" class="${locationMode === 'gps' ? 'active' : ''}" title="Use current location">📍 ${gpsAreaName}</button>
+            <button id="lb-loc-home" class="${locationMode === 'home' ? 'active' : ''}" title="Use saved home">🏠 ${storedHome.label}</button>
+          </div>
+          ${locationMode === 'gps' && gpsCoords && gpsAreaName
+            ? `<button class="lb-sethome" id="lb-set-home" title="Replace your saved home with ${gpsAreaName}">Set ${gpsAreaName} as home</button>`
+            : ''}
         </div>`
       : `<span class="lb-loc" id="lb-loc-label"${canSaveHome ? ' data-saveable="true" title="Tap to save as home"' : ''}>${locationMode === 'home' ? '🏠' : '📍'} ${areaName}, SG</span>`;
 
@@ -854,7 +889,7 @@
 
         <div class="lb-timeline">
           <div class="lb-timeline-label">${isTomorrow ? "Tomorrow's window" : "Today's window"} — 6 AM to 8 PM</div>
-          <div class="lb-track">${svg}</div>
+          <div class="lb-track"><span class="lb-track-cap lb-track-cap-stage">Laundry stages</span><span class="lb-track-cap lb-track-cap-risk">Rain risk</span>${svg}</div>
           <div class="lb-track-labels"><span>6 AM</span><span>10 AM</span><span>2 PM</span><span>6 PM</span><span>8 PM</span></div>
           ${legendHTML}
         </div>
@@ -877,6 +912,13 @@
     });
     document.getElementById('lb-loc-home')?.addEventListener('click', () => {
       locationMode = 'home'; setStoredMode('home'); boot();
+    });
+    document.getElementById('lb-set-home')?.addEventListener('click', () => {
+      if (!gpsCoords || !gpsAreaName) return;
+      setStoredHome({ lat: gpsCoords.lat, lng: gpsCoords.lng, label: gpsAreaName });
+      const el = document.getElementById('lb-set-home');
+      if (el) el.textContent = '🏠 Home updated!';
+      setTimeout(boot, 700);
     });
     document.getElementById('lb-loc-label')?.addEventListener('click', () => {
       if (!canSaveHome || !gpsCoords) return;
@@ -969,7 +1011,7 @@
     return new Promise((resolve, reject) => {
       if (!navigator.geolocation) return reject(new Error('no geolocation'));
       navigator.geolocation.getCurrentPosition(resolve, reject,
-        { timeout: 5000, maximumAge: maxAge ?? 300000, enableHighAccuracy: false });
+        { timeout: 12000, maximumAge: maxAge ?? 300000, enableHighAccuracy: false });
     });
   }
 
