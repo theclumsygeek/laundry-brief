@@ -14,7 +14,7 @@ The big card at the top is the recommendation:
 
 - **🟢 Start by [time]** — there's a comfortable drying window. Wash now and you'll be dry with margin to spare.
 - **🟡 Start by [time] — tight** — it'll work, but the window is narrow. Hang promptly and keep an eye on the sky.
-- **🔴 Not today** — no clean drying window before showers are expected. Use a dryer or an indoor rack.
+- **🔴 Not today** — no clean drying window before showers are expected, or before the evening light fades (clothes barely dry after ~7pm). Use a dryer or an indoor rack.
 
 If you open the app after 7pm, it automatically shows **tomorrow's** forecast instead.
 
@@ -23,6 +23,8 @@ Below the verdict:
 - **Timeline (6 AM – 8 PM)** — the top bar shows your laundry stages (wash & hang → drying → safe buffer) in brown/blue; the bar beneath it is the rain-risk heat strip, coloured clear → low risk → showers → thundery. The two bars use separate colour schemes, and the legend below explains each. The vertical "now" line marks the current time.
 - **Schedule** — the concrete steps: when to start washing, when to hang, when it should be dry, and when rain risk rises.
 - **Hour-by-hour outlook** — a simple icon strip across the day.
+
+An **"estimated"** badge on the timeline and outlook means no detailed hourly forecast was available, so the rain-risk profile is a coarse estimate from the day's general outlook rather than a true per-hour forecast — treat it as a rougher guide.
 
 ## What's in the load?
 

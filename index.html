@@ -569,6 +569,7 @@
   applyTheme(getStoredTheme());
 
   function fmtHour(h) {
+    h = ((h % 24) + 24) % 24; // guard: never render a 24h+ overflow as a bogus PM time
     const hh = Math.floor(h);
     const mm = Math.round((h - hh) * 60);
     const period = hh >= 12 ? 'PM' : 'AM';
@@ -766,7 +767,7 @@
       <div class="lb-schedule">
         <div class="lb-step"><div class="lb-step-time">${fmtHour(plan.startBy)}</div><div class="lb-step-label">Start washing — <b>${WASH_HOURS}h</b> for wash + hang</div></div>
         <div class="lb-step"><div class="lb-step-time">${fmtHour(plan.hangBy)}</div><div class="lb-step-label">Clothes on the line, drying begins</div></div>
-        <div class="lb-step"><div class="lb-step-time">${fmtHour(plan.dryBy)}</div><div class="lb-step-label">Dry, assuming <b>${plan.dryHours.toFixed(1)}h</b> for ${slowestFabric.label.toLowerCase()} today</div></div>
+        <div class="lb-step"><div class="lb-step-time">${plan.dryBy > LATEST_FINISH_HOUR ? '—' : fmtHour(plan.dryBy)}</div><div class="lb-step-label">${plan.dryBy > LATEST_FINISH_HOUR ? `Won't fully dry before evening — bring in whatever's done` : `Dry, assuming <b>${plan.dryHours.toFixed(1)}h</b> for ${slowestFabric.label.toLowerCase()} today`}</div></div>
         <div class="lb-step"><div class="lb-step-time">${fmtHour(plan.riskAt)}</div><div class="lb-step-label">Rain risk rises — bring it in if not already dry</div></div>
       </div>` : '';
 
@@ -854,7 +855,7 @@
       return `
         <div class="lb-fabric-row ${isWorst ? 'worst' : ''}">
           <div class="lb-fabric-row-name"><span>${fp.fabric.icon}</span>${fp.fabric.label}${isWorst ? '<span class="lb-fabric-tag">sets the plan</span>' : ''}</div>
-          <div class="lb-fabric-row-time">~${fp.dryHours.toFixed(1)}h dry · ready by <b>${fmtHour(fp.plan.dryBy)}</b></div>
+          <div class="lb-fabric-row-time">~${fp.dryHours.toFixed(1)}h dry · ${fp.plan.dryBy > LATEST_FINISH_HOUR ? `won't finish by evening` : `ready by <b>${fmtHour(fp.plan.dryBy)}</b>`}</div>
           <div class="lb-fabric-row-dot ${fv}"></div>
         </div>`;
     }).join('');
@@ -974,16 +975,19 @@
     // Try starting now (rounded up to next 15 min), else nearest feasible later start, else fail
     const candidateStart = Math.max(EARLIEST_START_HOUR, Math.ceil(nowHour * 4) / 4);
     const riskAt = findRiskStart(candidateStart);
+    // Drying effectively stalls after sunset (~7pm in SG) regardless of rain, so the
+    // usable deadline is whichever comes first: the next rain-risk hour or LATEST_FINISH_HOUR.
+    const deadline = Math.min(riskAt, LATEST_FINISH_HOUR);
     const hangBy = candidateStart + WASH_HOURS;
     const dryBy = hangBy + dryHours;
-    const dryWindowHours = riskAt - hangBy;
+    const dryWindowHours = deadline - hangBy;
 
     let verdict;
-    if (dryBy <= riskAt && dryBy <= LATEST_FINISH_HOUR) verdict = 'good';
-    else if (dryWindowHours >= dryHours * 0.7 && hangBy < riskAt) verdict = 'warn';
+    if (dryBy <= deadline) verdict = 'good';
+    else if (dryWindowHours >= dryHours * 0.7 && hangBy < deadline) verdict = 'warn';
     else verdict = 'bad';
 
-    return { startBy: candidateStart, hangBy, dryBy, riskAt, dryWindowHours, verdict, dryHours };
+    return { startBy: candidateStart, hangBy, dryBy, riskAt, deadline, dryWindowHours, verdict, dryHours };
   }
 
   function getStoredFabrics() {
