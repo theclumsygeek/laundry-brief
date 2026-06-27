@@ -24,6 +24,7 @@ Everything lives in `index.html`: styles, logic, and markup are all inline. The 
 **JS** (inline `<script>`, IIFE) — pure vanilla JS, no frameworks. Key pieces:
 - `loadWeather(lat, lng)` — fetches from NEA/MSS APIs (v2 first, v1 fallback). The coords pick the nearest humidity/wind station. Humidity and wind are non-fatal; only the 2-hour nowcast is required.
 - `findNearestArea(lat, lng, areaMetadata)` — resolves the named forecast area closest to a coordinate, using the `area_metadata` list embedded in the 2-hour nowcast response. No external geocoding API needed.
+- `regionForCoord(lat, lng)` — maps a coordinate to the nearest of NEA's five broad 24-hour-forecast regions (`central`/`north`/`south`/`east`/`west`) by centroid distance (`REGION_CENTROIDS`). Used to pick which per-period region text drives the hourly risk profile.
 - `buildPlan(nowHour, hourlyRiskByHour, dryHours)` — core scheduling logic. Finds the next rain-risk hour, then sets the usable `deadline` to the earlier of that hour or `LATEST_FINISH_HOUR` (drying effectively stalls after sunset, so the verdict is measured against this combined boundary, not rain alone). Checks if drying completes before the deadline; returns a `{verdict, startBy, hangBy, dryBy, riskAt, deadline, dryWindowHours}` object. When `dryBy` overflows `LATEST_FINISH_HOUR`, the schedule/fabric rows render "won't finish by evening" instead of a literal (and previously midnight-wrapping) time.
 - `render(state)` — single render function keyed on `state.status` ('loading' | 'error' | 'ready'). Rebuilds `innerHTML` on every state change (no diffing).
 - `boot(forceGPS)` — resolves location coords (Phase A: GPS/home/fallback), calls `loadWeather()`, resolves the area name (Phase B), computes the location toggle/save-home UI state (Phase C), assembles state, calls `render()`. Re-runs on Refresh, location toggle, and fabric chip clicks. `forceGPS === true` (only the Refresh button) drops the session GPS cache and requests a fresh fix.
@@ -32,7 +33,7 @@ Everything lives in `index.html`: styles, logic, and markup are all inline. The 
 
 **Drying model** — `DRY_HOURS_BASELINE` (3.5h for light cotton) × fabric multiplier × `weatherMultiplier({rh, windKmh, conditionText})`. The weather multiplier is the cube root of three factors (humidity, wind, sky condition) so no single extreme dominates.
 
-**Hourly risk profile** — built from the 24-hour forecast's per-period east-region text where available (`periodRiskByHour`), falling back to a heuristic based on `regionOutlook` if the periods array is empty. In the fallback, the afternoon severity comes from `conditionToRisk` on the outlook text (so Showers=2 and Thundery=3 are distinguished rather than always assuming the worst), and is null when the text is dry. The live 2-hour nowcast is overlaid onto the nearest display slot regardless. When the profile is heuristic (no usable period data), an `estimated` flag is set on state and surfaces an "estimated" badge on the timeline and hour-by-hour labels.
+**Hourly risk profile** — built from the 24-hour forecast's per-period text for the region nearest the active location (via `regionForCoord`, falling back to `east` if that region key is missing) where available (`periodRiskByHour`), falling back to a heuristic based on `regionOutlook` if the periods array is empty. In the fallback, the afternoon severity comes from `conditionToRisk` on the outlook text (so Showers=2 and Thundery=3 are distinguished rather than always assuming the worst), and is null when the text is dry. The live 2-hour nowcast is overlaid onto the nearest display slot regardless. When the profile is heuristic (no usable period data), an `estimated` flag is set on state and surfaces an "estimated" badge on the timeline and hour-by-hour labels.
 
 **State persistence** — `localStorage` for theme (`laundry-brief-theme`), selected fabric IDs (`laundry-brief-fabrics`), saved home (`laundry-brief-home` — `{lat, lng, label}`), and location mode (`laundry-brief-mode` — `'gps' | 'home'`).
 
@@ -51,7 +52,7 @@ Fabric multipliers live in the `FABRICS` array (`mult: 0.6` for synthetics → `
 
 ## External APIs
 
-All from data.gov.sg / MSS. All read-only, no auth required. The APIs return nationwide data with no location parameter — location only affects which area forecast is extracted and which humidity/wind station is treated as nearest.
+All from data.gov.sg / MSS. All read-only, no auth required. The APIs return nationwide data with no location parameter — location only affects which area forecast is extracted, which of the five broad regions drives the period-based hourly risk, and which humidity/wind station is treated as nearest.
 - 2-hour nowcast (v2 then v1 fallback) — drives current condition and immediate-hour risk; its `area_metadata` also drives GPS→area-name resolution
 - 24-hour forecast (v2 then v1 fallback) — drives period-based hourly risk and temp/RH range
 - Relative humidity & wind speed (v1 only) — nearest station to the active location, non-fatal if unavailable

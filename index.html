@@ -224,6 +224,10 @@
     color: var(--ink-soft);
     margin-bottom: 8px;
   }
+  .lb-eyebrow .lb-src {
+    opacity: 0.6;
+    font-weight: 600;
+  }
   .lb-headline {
     font-family: 'Archivo Black', 'Helvetica Neue', Arial, sans-serif;
     font-size: 25px;
@@ -628,6 +632,25 @@
     return best;
   }
 
+  // The 24-hour forecast's per-period `regions` object is keyed by NEA's five broad
+  // regions, not by named area. Pick the one whose approximate centroid is nearest the
+  // active location so the hourly risk profile reflects where the user actually is.
+  const REGION_CENTROIDS = {
+    central: { lat: 1.35, lng: 103.82 },
+    north:   { lat: 1.43, lng: 103.82 },
+    south:   { lat: 1.27, lng: 103.82 },
+    east:    { lat: 1.35, lng: 103.96 },
+    west:    { lat: 1.34, lng: 103.70 },
+  };
+  function regionForCoord(lat, lng) {
+    let best = 'central', bestDist = Infinity;
+    for (const [name, c] of Object.entries(REGION_CENTROIDS)) {
+      const d = Math.hypot(lat - c.lat, lng - c.lng);
+      if (d < bestDist) { bestDist = d; best = name; }
+    }
+    return best;
+  }
+
   async function fetchJSON(url) {
     const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
     if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -885,6 +908,17 @@
       ? `<span class="lb-est-badge" title="No detailed hourly forecast was available — this is a coarse estimate from the day's general outlook">estimated</span>`
       : '';
 
+    // Eyebrow shows two distinct readings: the 2-hour nowcast for the nearest named
+    // area, and the 24-hour island-wide general outlook. Tag each with its source, and
+    // drop the island-wide one when it just repeats the local condition.
+    const sameCondition = (a, b) => !!a && !!b && a.trim().toLowerCase() === b.trim().toLowerCase();
+    const srcTag = (label) => `<span class="lb-src">(${label})</span>`;
+    const regionDiffers = regionOutlook && !sameCondition(regionOutlook, areaCondition);
+    const eyebrowText = isTomorrow
+      ? `Tomorrow's forecast${regionOutlook ? ` · ${regionOutlook} ${srcTag('island-wide')}` : ''}`
+      : `Right now: ${riskNow.icon} ${areaCondition}${regionDiffers ? ` ${srcTag('local')}` : ''}` +
+        (regionDiffers ? ` · ${regionOutlook} ${srcTag('island-wide')}` : '');
+
     root.innerHTML = `
       <div class="lb-wrap">
         <div class="lb-masthead">
@@ -894,7 +928,7 @@
         <div class="lb-updated">Live · MSS/NEA · fetched ${fetchedAt}<button id="lb-retry">Refresh</button></div>
 
         <div class="lb-verdict ${verdictClass}">
-          <div class="lb-eyebrow">${isTomorrow ? `Tomorrow's forecast${regionOutlook ? ' · ' + regionOutlook : ''}` : `Right now: ${riskNow.icon} ${areaCondition}${regionOutlook ? ' · ' + regionOutlook : ''}`}</div>
+          <div class="lb-eyebrow">${eyebrowText}</div>
           <h2 class="lb-headline">${headline}</h2>
           <p class="lb-sub">${sub}</p>
         </div>
@@ -1104,8 +1138,10 @@
       }
       const periods = outlook24?.data?.records?.[0]?.periods || outlook24?.items?.[0]?.periods;
 
-      // Build hourly risk 6–20 from 24hr period data (east region) if available, else heuristic fallback.
+      // Build hourly risk 6–20 from 24hr period data for the region nearest the active
+      // location if available, else heuristic fallback.
       // Uses date-aware overlap so tomorrow mode only picks up periods that fall on the target day.
+      const region = regionForCoord(activeLat, activeLng);
       const periodRiskByHour = {};
       if (periods && periods.length) {
         const targetDayStart = new Date(targetDateStr + 'T06:00:00+08:00');
@@ -1116,7 +1152,7 @@
           const overlapStart = new Date(Math.max(pStart, targetDayStart));
           const overlapEnd   = new Date(Math.min(pEnd, targetDayEnd));
           if (overlapStart >= overlapEnd) continue;
-          const r = conditionToRisk(p.regions?.east || '');
+          const r = conditionToRisk(p.regions?.[region] ?? p.regions?.east ?? '');
           const startH = toSGTHour(overlapStart);
           const endH   = toSGTHour(overlapEnd);
           for (let h = Math.floor(startH); h < Math.ceil(endH) && h <= 20; h++) periodRiskByHour[h] = r;
