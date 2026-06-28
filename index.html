@@ -280,13 +280,16 @@
   }
   .lb-track-cap-stage { top: 0; }
   .lb-track-cap-risk { top: 34px; }
+  /* Ticks are absolutely positioned from the same xOf() the bars use, so each
+     label sits exactly under its hour on the SVG (no flex space-between guesswork). */
   .lb-track-labels {
-    display: flex;
-    justify-content: space-between;
+    position: relative;
+    height: 12px;
     font-size: 10px;
     color: var(--ink-faint);
     margin-top: 6px;
   }
+  .lb-track-labels span { position: absolute; white-space: nowrap; }
   .lb-legend {
     display: flex;
     flex-direction: column;
@@ -850,6 +853,19 @@
         ${nowX !== null ? `<line x1="${nowX}" y1="2" x2="${nowX}" y2="${H-2}" stroke="var(--ink)" stroke-width="1.5"/><circle cx="${nowX}" cy="2" r="2.5" fill="var(--ink)"/><text x="${nowX}" y="${H-2}" font-size="8" fill="var(--ink)" font-family="monospace" text-anchor="${nowX > W-40 ? 'end' : 'start'}" dx="${nowX > W-40 ? -4 : 4}">now</text>` : ''}
       </svg>`;
 
+    // Tick labels positioned by the same xOf() as the bars. Round hours land
+    // exactly under their bar position; endpoints anchor to the edges so they
+    // don't clip, the rest centre on their tick.
+    const fmtTick = (h) => { let x = h % 12; if (x === 0) x = 12; return `${x} ${h >= 12 ? 'PM' : 'AM'}`; };
+    const tickHours = [6, 8, 10, 12, 14, 16, 18, 20];
+    const trackLabelsHTML = tickHours.map((h, i) => {
+      const pct = (xOf(h) / W) * 100;
+      const place = i === 0 ? 'left:0'
+        : i === tickHours.length - 1 ? `left:${pct.toFixed(2)}%;transform:translateX(-100%)`
+        : `left:${pct.toFixed(2)}%;transform:translateX(-50%)`;
+      return `<span style="${place}">${fmtTick(h)}</span>`;
+    }).join('');
+
     const legendHTML = `
       <div class="lb-legend">
         <div class="lb-legend-group">
@@ -944,7 +960,7 @@
         <div class="lb-timeline">
           <div class="lb-timeline-label">${isTomorrow ? "Tomorrow's window" : "Today's window"} — 6 AM to 8 PM${estBadge}</div>
           <div class="lb-track"><span class="lb-track-cap lb-track-cap-stage">Laundry stages</span><span class="lb-track-cap lb-track-cap-risk">Rain risk</span>${svg}</div>
-          <div class="lb-track-labels"><span>6 AM</span><span>10 AM</span><span>2 PM</span><span>6 PM</span><span>8 PM</span></div>
+          <div class="lb-track-labels">${trackLabelsHTML}</div>
           ${legendHTML}
         </div>
 
